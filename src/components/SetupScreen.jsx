@@ -1,31 +1,43 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
-import { generateSchedule, getRecommendedMatches } from '../utils/tournament'
+import { generateSchedule, getDefaultTotalMatches } from '../utils/tournament'
+
+function isFair(totalMatches, numPlayers) {
+  return (totalMatches * 4) % numPlayers === 0
+}
+
+function nearestFair(totalMatches, numPlayers) {
+  let lower = totalMatches - 1
+  while (lower >= 1 && (lower * 4) % numPlayers !== 0) lower--
+  let higher = totalMatches + 1
+  while (higher <= totalMatches + numPlayers && (higher * 4) % numPlayers !== 0) higher++
+  return { lower: lower >= 1 ? lower : null, higher }
+}
 
 export default function SetupScreen({ onStart }) {
   const [inputValue, setInputValue] = useState('')
   const [players, setPlayers] = useState([])
   const [error, setError] = useState('')
   const [numCourts, setNumCourts] = useState(1)
-  const [matchesPerPlayer, setMatchesPerPlayer] = useState(1)
+  const [totalMatches, setTotalMatches] = useState(1)
   const [pointsPerMatch, setPointsPerMatch] = useState(12)
   const [starting, setStarting] = useState(false)
+  const [showUnfairWarning, setShowUnfairWarning] = useState(false)
 
   const maxCourts = Math.max(1, Math.floor(players.length / 4))
-  const roundsTotal =
-    players.length >= 4
-      ? Math.ceil((matchesPerPlayer * players.length) / (4 * numCourts))
-      : 0
+  const roundsTotal = Math.ceil(totalMatches / numCourts)
+  const avgMatchesPerPlayer =
+    players.length > 0 ? ((totalMatches * 4) / players.length).toFixed(1) : 0
 
   // Keep numCourts within bounds when player count changes
   useEffect(() => {
     if (numCourts > maxCourts) setNumCourts(maxCourts)
   }, [players.length, maxCourts])
 
-  // Update matchesPerPlayer to recommended value when courts or player count changes
+  // Reset totalMatches to a sensible default when players or courts change
   useEffect(() => {
     if (players.length >= 4) {
-      setMatchesPerPlayer(getRecommendedMatches(players.length, numCourts))
+      setTotalMatches(getDefaultTotalMatches(players.length, numCourts))
     }
   }, [players.length, numCourts])
 
@@ -53,19 +65,27 @@ export default function SetupScreen({ onStart }) {
     if (e.key === 'Enter') addPlayer()
   }
 
-  const handleStart = async () => {
+  const handleStartClick = () => {
     if (players.length < 6 || starting) return
+    if (!isFair(totalMatches, players.length)) {
+      setShowUnfairWarning(true)
+    } else {
+      handleStart()
+    }
+  }
+
+  const handleStart = async () => {
+    setShowUnfairWarning(false)
     setStarting(true)
     setError('')
 
     try {
-      // 1. Clear any existing data
-      await supabase.from('schedule').delete().neq('id', '00000000-0000-0000-0000-000000000000')
-      await supabase.from('tournament_settings').delete().neq('id', '00000000-0000-0000-0000-000000000000')
-      await supabase.from('matches').delete().neq('id', '00000000-0000-0000-0000-000000000000')
-      await supabase.from('players').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+      const dummy = '00000000-0000-0000-0000-000000000000'
+      await supabase.from('schedule').delete().neq('id', dummy)
+      await supabase.from('tournament_settings').delete().neq('id', dummy)
+      await supabase.from('matches').delete().neq('id', dummy)
+      await supabase.from('players').delete().neq('id', dummy)
 
-      // 2. Insert players
       const { data: insertedPlayers, error: pErr } = await supabase
         .from('players')
         .insert(players.map((name) => ({ name })))
@@ -73,14 +93,12 @@ export default function SetupScreen({ onStart }) {
 
       if (pErr) throw pErr
 
-      // 3. Generate full schedule
       const { schedule, roundsTotal: rt } = generateSchedule(
         insertedPlayers,
         numCourts,
-        matchesPerPlayer
+        totalMatches
       )
 
-      // 4. Build schedule rows for Supabase
       const scheduleRows = []
       for (const { round, courts } of schedule) {
         for (const court of courts) {
@@ -101,7 +119,6 @@ export default function SetupScreen({ onStart }) {
       const { error: sErr } = await supabase.from('schedule').insert(scheduleRows)
       if (sErr) throw sErr
 
-      // 5. Insert tournament settings
       const { data: settings, error: tErr } = await supabase
         .from('tournament_settings')
         .insert({
@@ -123,7 +140,11 @@ export default function SetupScreen({ onStart }) {
     }
   }
 
-  const canStart = players.length >= 6 && !starting
+  const fair = players.length >= 4 && isFair(totalMatches, players.length)
+  const { lower, higher } =
+    players.length >= 4 && !fair
+      ? nearestFair(totalMatches, players.length)
+      : { lower: null, higher: null }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-10">
@@ -207,13 +228,53 @@ export default function SetupScreen({ onStart }) {
               max={maxCourts}
               onChange={setNumCourts}
             />
-            <SettingRow
-              label="Wedstrijden per speler"
-              value={matchesPerPlayer}
-              min={1}
-              max={10}
-              onChange={setMatchesPerPlayer}
-            />
+
+            {/* Total matches with fairness check */}
+            <div>
+              <SettingRow
+                label="Totaal aantal wedstrijden"
+                value={totalMatches}
+                min={1}
+                max={999}
+                onChange={setTotalMatches}
+              />
+              <div className="mt-2 ml-0">
+                {fair ? (
+                  <p className="text-sm text-green-600">
+                    ✅ Elke speler speelt{' '}
+                    <strong>{(totalMatches * 4) / players.length}</strong> wedstrijden
+                  </p>
+                ) : (
+                  <div>
+                    <p className="text-sm text-amber-600">
+                      ⚠️ Niet iedereen speelt evenveel wedstrijden.
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Dichtstbijzijnde eerlijke aantallen:
+                    </p>
+                    <div className="flex gap-2 mt-1">
+                      {lower !== null && (
+                        <button
+                          onClick={() => setTotalMatches(lower)}
+                          className="px-3 py-1 rounded-full border border-amber-300 text-amber-700
+                                     text-xs font-semibold hover:bg-amber-50 transition-colors"
+                        >
+                          {lower}
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setTotalMatches(higher)}
+                        className="px-3 py-1 rounded-full border border-amber-300 text-amber-700
+                                   text-xs font-semibold hover:bg-amber-50 transition-colors"
+                      >
+                        {higher}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
             <SettingRow
               label="Punten per wedstrijd"
               value={pointsPerMatch}
@@ -224,27 +285,50 @@ export default function SetupScreen({ onStart }) {
           </div>
 
           {/* Live preview */}
-          {players.length >= 6 && roundsTotal > 0 && (
+          {players.length >= 6 && (
             <div className="mt-4 p-3 bg-gray-50 rounded-xl text-sm text-gray-600 leading-relaxed">
               Met <strong>{players.length}</strong> spelers,{' '}
               <strong>{numCourts}</strong> {numCourts === 1 ? 'baan' : 'banen'} en{' '}
-              <strong>{matchesPerPlayer}</strong> wedstrijden per speler zijn er{' '}
-              <strong>{roundsTotal}</strong> rondes totaal.
+              <strong>{totalMatches}</strong> wedstrijden totaal zijn er{' '}
+              <strong>{roundsTotal}</strong> rondes.
               <br />
-              Elke speler speelt <strong>{matchesPerPlayer}</strong> of{' '}
-              <strong>{matchesPerPlayer + 1}</strong> wedstrijden.
+              Elke speler speelt ongeveer <strong>{avgMatchesPerPlayer}</strong> wedstrijden.
             </div>
           )}
         </div>
       )}
 
       <button
-        onClick={handleStart}
-        disabled={!canStart}
+        onClick={handleStartClick}
+        disabled={players.length < 6 || starting}
         className="btn-primary w-full max-w-md py-3 text-base"
       >
         {starting ? 'Bezig met starten...' : 'Start Toernooi'}
       </button>
+
+      {/* Unfair distribution confirmation dialog */}
+      {showUnfairWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl">
+            <p className="text-xl mb-1">⚠️</p>
+            <p className="font-semibold text-gray-900 mb-2">Oneerlijke verdeling</p>
+            <p className="text-sm text-gray-500 mb-6">
+              Niet iedereen speelt evenveel wedstrijden. Wil je toch starten?
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowUnfairWarning(false)}
+                className="btn-secondary flex-1"
+              >
+                Annuleren
+              </button>
+              <button onClick={handleStart} className="btn-primary flex-1">
+                Toch starten
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

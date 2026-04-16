@@ -15,19 +15,23 @@ export function computeRanking(players) {
     })
 }
 
-// Recommended matches per player: cover all unique pairs once
 export function getRecommendedMatches(playerCount, numCourts) {
   const uniquePairs = (playerCount * (playerCount - 1)) / 2
   return Math.ceil(uniquePairs / Math.max(numCourts, 1))
+}
+
+export function getDefaultTotalMatches(playerCount, numCourts) {
+  const matchesPerPlayer = getRecommendedMatches(playerCount, numCourts)
+  return Math.ceil((matchesPerPlayer * playerCount) / 4)
 }
 
 const pairKey = (a, b) => (a < b ? `${a}__${b}` : `${b}__${a}`)
 const getCount = (map, a, b) => map.get(pairKey(a, b)) || 0
 const incCount = (map, a, b) => map.set(pairKey(a, b), getCount(map, a, b) + 1)
 
-export function generateSchedule(players, numCourts, matchesPerPlayer) {
+export function generateSchedule(players, numCourts, totalMatches) {
   const n = players.length
-  const roundsTotal = Math.ceil((matchesPerPlayer * n) / (4 * numCourts))
+  const roundsTotal = Math.ceil(totalMatches / numCourts)
 
   const partnerCount = new Map()
   const opponentCount = new Map()
