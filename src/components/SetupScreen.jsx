@@ -231,11 +231,10 @@ export default function SetupScreen({ onStart }) {
 
             {/* Total matches with fairness check */}
             <div>
-              <SettingRow
+              <EditableSettingRow
                 label="Totaal aantal wedstrijden"
                 value={totalMatches}
                 min={1}
-                max={999}
                 onChange={setTotalMatches}
               />
               <div className="mt-2 ml-0">
@@ -275,11 +274,11 @@ export default function SetupScreen({ onStart }) {
               </div>
             </div>
 
-            <SettingRow
+            <EditableSettingRow
               label="Punten per wedstrijd"
               value={pointsPerMatch}
-              min={6}
-              max={21}
+              min={1}
+              max={99}
               onChange={setPointsPerMatch}
             />
           </div>
@@ -351,6 +350,49 @@ function SettingRow({ label, value, min, max, onChange }) {
         <button
           onClick={() => onChange(Math.min(max, value + 1))}
           disabled={value >= max}
+          className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center
+                     text-gray-600 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed
+                     font-bold text-lg leading-none"
+        >
+          +
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function EditableSettingRow({ label, value, min, max, onChange }) {
+  const clamp = (v) => {
+    if (isNaN(v)) return min
+    if (v < min) return min
+    if (max !== undefined && v > max) return max
+    return v
+  }
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-sm text-gray-700">{label}</span>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => onChange(clamp(value - 1))}
+          disabled={value <= min}
+          className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center
+                     text-gray-600 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed
+                     font-bold text-lg leading-none"
+        >
+          −
+        </button>
+        <input
+          type="number"
+          value={value}
+          min={min}
+          max={max}
+          onChange={(e) => onChange(clamp(parseInt(e.target.value, 10)))}
+          className="w-16 text-center border border-gray-200 rounded-lg px-2 py-1 text-sm
+                     font-semibold focus:outline-none focus:border-primary transition-colors"
+        />
+        <button
+          onClick={() => onChange(clamp(value + 1))}
+          disabled={max !== undefined && value >= max}
           className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center
                      text-gray-600 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed
                      font-bold text-lg leading-none"

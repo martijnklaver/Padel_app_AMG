@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { supabase } from '../supabaseClient'
 
 export default function ScoreInput({ scheduleRow, players, pointsPerMatch, courtNumber, onSaved }) {
@@ -6,37 +6,28 @@ export default function ScoreInput({ scheduleRow, players, pointsPerMatch, court
   const [score2, setScore2] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [showDeviation, setShowDeviation] = useState(false)
 
   const s1 = parseInt(score1, 10)
   const s2 = parseInt(score2, 10)
-  const sumOk = !isNaN(s1) && !isNaN(s2) && s1 >= 0 && s2 >= 0 && s1 + s2 === pointsPerMatch
+  const canSave = !isNaN(s1) && !isNaN(s2) && s1 >= 0 && s2 >= 0
 
-  useEffect(() => {
-    if (score1 !== '' || score2 !== '') {
-      const a = isNaN(s1) ? 0 : s1
-      const b = isNaN(s2) ? 0 : s2
-      if (!isNaN(s1) && !isNaN(s2) && s1 + s2 !== pointsPerMatch) {
-        setError(`Som moet ${pointsPerMatch} zijn (nu: ${a + b})`)
-      } else {
-        setError('')
-      }
-    }
-  }, [score1, score2, pointsPerMatch])
-
-  const handleSave = async () => {
-    if (!sumOk || saving) return
+  const doSave = async () => {
+    setShowDeviation(false)
     setSaving(true)
     setError('')
 
+    const actualSum = s1 + s2
+
     const { error: rpcErr } = await supabase.rpc('save_match_result', {
-      p_schedule_id:     scheduleRow.id,
-      p_score_team1:     s1,
-      p_score_team2:     s2,
-      p_team1_p1:        scheduleRow.team1_p1,
-      p_team1_p2:        scheduleRow.team1_p2,
-      p_team2_p1:        scheduleRow.team2_p1,
-      p_team2_p2:        scheduleRow.team2_p2,
-      p_points_per_match: pointsPerMatch,
+      p_schedule_id:      scheduleRow.id,
+      p_score_team1:      s1,
+      p_score_team2:      s2,
+      p_team1_p1:         scheduleRow.team1_p1,
+      p_team1_p2:         scheduleRow.team1_p2,
+      p_team2_p1:         scheduleRow.team2_p1,
+      p_team2_p2:         scheduleRow.team2_p2,
+      p_points_per_match: actualSum,
     })
 
     setSaving(false)
@@ -44,6 +35,15 @@ export default function ScoreInput({ scheduleRow, players, pointsPerMatch, court
       setError('Opslaan mislukt: ' + rpcErr.message)
     } else {
       onSaved()
+    }
+  }
+
+  const handleSave = () => {
+    if (!canSave || saving) return
+    if (s1 + s2 !== pointsPerMatch) {
+      setShowDeviation(true)
+    } else {
+      doSave()
     }
   }
 
@@ -71,7 +71,6 @@ export default function ScoreInput({ scheduleRow, players, pointsPerMatch, court
           <input
             type="number"
             min={0}
-            max={pointsPerMatch}
             value={score1}
             onChange={(e) => setScore1(e.target.value)}
             className="score-input"
@@ -81,7 +80,6 @@ export default function ScoreInput({ scheduleRow, players, pointsPerMatch, court
           <input
             type="number"
             min={0}
-            max={pointsPerMatch}
             value={score2}
             onChange={(e) => setScore2(e.target.value)}
             className="score-input"
@@ -100,11 +98,36 @@ export default function ScoreInput({ scheduleRow, players, pointsPerMatch, court
 
       <button
         onClick={handleSave}
-        disabled={!sumOk || saving}
+        disabled={!canSave || saving}
         className="btn-primary w-full py-3"
       >
         {saving ? 'Opslaan...' : 'Opslaan'}
       </button>
+
+      {/* Deviation confirmation dialog */}
+      {showDeviation && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl">
+            <p className="text-xl mb-1">⚠️</p>
+            <p className="font-semibold text-gray-900 mb-2">Score wijkt af</p>
+            <p className="text-sm text-gray-500 mb-6">
+              De totale score ({s1 + s2}) wijkt af van het ingestelde aantal
+              punten ({pointsPerMatch}). Weet je zeker dat je deze score wilt opslaan?
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeviation(false)}
+                className="btn-secondary flex-1"
+              >
+                Annuleren
+              </button>
+              <button onClick={doSave} className="btn-primary flex-1">
+                Toch opslaan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

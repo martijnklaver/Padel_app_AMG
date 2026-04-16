@@ -1,6 +1,11 @@
--- Enable realtime on all tables
-ALTER PUBLICATION supabase_realtime ADD TABLE schedule;
-ALTER PUBLICATION supabase_realtime ADD TABLE tournament_settings;
+-- Enable realtime on all tables (ignore if already a member)
+DO $$ BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE schedule;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE tournament_settings;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- Update save_match_result to work with schedule table and dynamic points_per_match
 DROP FUNCTION IF EXISTS save_match_result(UUID,INT,INT,UUID,UUID,UUID,UUID);

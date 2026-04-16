@@ -4,37 +4,44 @@ import ScoreInput from './ScoreInput'
 import BenchDisplay from './BenchDisplay'
 import RankingFooter from './RankingFooter'
 import ScheduleView from './ScheduleView'
+import EditMatchDialog from './EditMatchDialog'
 
-export default function TournamentScreen({ tournamentData, onEnd }) {
+export default function TournamentScreen({ tournamentData, onEnd, onReset }) {
   const [schedule, setSchedule] = useState([])
   const [players, setPlayers] = useState(tournamentData?.players ?? [])
   const [settings, setSettings] = useState(tournamentData?.settings ?? null)
   const [loading, setLoading] = useState(true)
   const [showStopDialog, setShowStopDialog] = useState(false)
-  const playerIdsRef = useRef(tournamentData?.players?.map((p) => p.id) ?? [])
+  const [editRow, setEditRow] = useState(null)
+  // Prevents double-navigation when current device triggers the end
+  const endedRef = useRef(false)
 
   const fetchData = useCallback(async () => {
-    const ids = playerIdsRef.current
-    if (ids.length === 0) return
-
     const [{ data: freshPlayers }, { data: freshSchedule }, { data: freshSettings }] =
       await Promise.all([
-        supabase.from('players').select('*').in('id', ids),
-        supabase.from('schedule').select('*').in('team1_p1', ids).order('round_number').order('court_number'),
-        supabase.from('tournament_settings').select('*').eq('is_active', true).single(),
+        supabase.from('players').select('*'),
+        supabase.from('schedule').select('*').order('round_number').order('court_number'),
+        supabase.from('tournament_settings').select('*').eq('is_active', true).maybeSingle(),
       ])
+
+    // Tournament was reset/stopped from another device
+    if (!freshSettings && !endedRef.current) {
+      endedRef.current = true
+      onReset()
+      return
+    }
 
     if (freshPlayers) setPlayers(freshPlayers)
     if (freshSchedule) setSchedule(freshSchedule)
     if (freshSettings) setSettings(freshSettings)
-  }, [])
+  }, [onReset])
 
   // Initial load
   useEffect(() => {
     fetchData().then(() => setLoading(false))
   }, [fetchData])
 
-  // Realtime subscription
+  // Realtime subscription — syncs across all devices
   useEffect(() => {
     const unsub = subscribeToAll(fetchData)
     return unsub
@@ -42,16 +49,13 @@ export default function TournamentScreen({ tournamentData, onEnd }) {
 
   // After a score is saved: check if round is complete → advance or end
   const handleScoreSaved = useCallback(async () => {
-    const ids = playerIdsRef.current
     const { data: freshSchedule } = await supabase
       .from('schedule')
       .select('*')
-      .in('team1_p1', ids)
       .order('round_number')
       .order('court_number')
 
     if (!freshSchedule) return
-
     setSchedule(freshSchedule)
 
     const currentRows = freshSchedule.filter((r) => r.is_current)
@@ -64,13 +68,9 @@ export default function TournamentScreen({ tournamentData, onEnd }) {
     const nextRows = freshSchedule.filter((r) => r.round_number === currentRound + 1)
 
     if (nextRows.length === 0) {
-      // Tournament over — fetch final player stats
-      const { data: finalPlayers } = await supabase
-        .from('players')
-        .select('*')
-        .in('id', ids)
+      endedRef.current = true
+      const { data: finalPlayers } = await supabase.from('players').select('*')
 
-      // Deactivate settings
       if (settings?.id) {
         await supabase
           .from('tournament_settings')
@@ -87,23 +87,18 @@ export default function TournamentScreen({ tournamentData, onEnd }) {
       .from('schedule')
       .update({ is_current: false })
       .eq('round_number', currentRound)
-      .in('team1_p1', ids)
 
     await supabase
       .from('schedule')
       .update({ is_current: true })
       .eq('round_number', currentRound + 1)
-      .in('team1_p1', ids)
 
-    // Re-fetch after advancing
     fetchData()
   }, [fetchData, onEnd, players, settings])
 
   const handleStop = async () => {
-    const { data: finalPlayers } = await supabase
-      .from('players')
-      .select('*')
-      .in('id', playerIdsRef.current)
+    endedRef.current = true
+    const { data: finalPlayers } = await supabase.from('players').select('*')
 
     if (settings?.id) {
       await supabase
@@ -113,6 +108,11 @@ export default function TournamentScreen({ tournamentData, onEnd }) {
     }
 
     onEnd(finalPlayers ?? players)
+  }
+
+  const handleEditSaved = () => {
+    setEditRow(null)
+    fetchData()
   }
 
   if (loading) {
@@ -133,13 +133,11 @@ export default function TournamentScreen({ tournamentData, onEnd }) {
     ? schedule.filter((r) => r.round_number === nextRoundNum)
     : []
 
-  // Bench: players not playing in current round
   const playingIds = new Set(
     currentRows.flatMap((r) => [r.team1_p1, r.team1_p2, r.team2_p1, r.team2_p2])
   )
   const benchPlayers = players.filter((p) => !playingIds.has(p.id))
 
-  // Bench for next round
   const nextPlayingIds = new Set(
     nextRows.flatMap((r) => [r.team1_p1, r.team1_p2, r.team2_p1, r.team2_p2])
   )
@@ -196,6 +194,17 @@ export default function TournamentScreen({ tournamentData, onEnd }) {
         </div>
       )}
 
+      {/* Edit match dialog */}
+      {editRow && (
+        <EditMatchDialog
+          row={editRow}
+          players={players}
+          pointsPerMatch={pointsPerMatch}
+          onSaved={handleEditSaved}
+          onClose={() => setEditRow(null)}
+        />
+      )}
+
       <div className="px-4 py-4 max-w-lg mx-auto space-y-4">
 
         {/* Current round */}
@@ -218,19 +227,27 @@ export default function TournamentScreen({ tournamentData, onEnd }) {
                 </div>
               ))}
 
-            {/* Already completed courts in current round */}
+            {/* Completed courts in current round */}
             {currentRows.filter((r) => r.is_completed).map((row) => (
-              <div key={row.id} className="card mb-3 opacity-60">
+              <div key={row.id} className="card mb-3 opacity-70">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-xs text-gray-400">Baan {row.court_number}:</span>
-                  <span className="text-gray-700">
+                  <span className="text-gray-700 flex-1 text-center">
                     {name(row.team1_p1)} & {name(row.team1_p2)}
                     <span className="mx-2 font-mono font-bold text-primary">
                       {row.score_team1}–{row.score_team2}
                     </span>
                     {name(row.team2_p1)} & {name(row.team2_p2)}
                   </span>
-                  <span className="text-green-500 ml-2">✓</span>
+                  <div className="flex items-center gap-2 ml-2">
+                    <span className="text-green-500">✓</span>
+                    <button
+                      onClick={() => setEditRow(row)}
+                      className="text-xs text-gray-400 hover:text-primary transition-colors"
+                    >
+                      ✏️
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -271,6 +288,7 @@ export default function TournamentScreen({ tournamentData, onEnd }) {
           schedule={schedule}
           players={players}
           currentRound={currentRound}
+          onEdit={setEditRow}
         />
       </div>
 

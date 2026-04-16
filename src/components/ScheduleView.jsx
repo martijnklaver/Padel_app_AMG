@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-export default function ScheduleView({ schedule, players, currentRound }) {
+export default function ScheduleView({ schedule, players, currentRound, onEdit }) {
   const [open, setOpen] = useState(false)
 
   const name = (id) => players.find((p) => p.id === id)?.name ?? '?'
@@ -63,18 +63,28 @@ export default function ScheduleView({ schedule, players, currentRound }) {
                 </div>
 
                 {rows.map((row) => (
-                  <div key={row.id} className="text-sm text-gray-700 mb-1 last:mb-0">
-                    <span className="text-gray-400 text-xs mr-1">Baan {row.court_number}:</span>
-                    {name(row.team1_p1)} & {name(row.team1_p2)}
-                    <span className="text-gray-400 mx-1">vs</span>
-                    {name(row.team2_p1)} & {name(row.team2_p2)}
-                    {row.is_completed && row.score_team1 !== null && (
-                      <span className="ml-2 font-mono text-xs text-gray-400">
-                        ({row.score_team1}–{row.score_team2})
-                      </span>
-                    )}
-                    {row.warning && (
-                      <span className="ml-1 text-xs text-amber-600">{row.warning}</span>
+                  <div key={row.id} className="flex items-center justify-between mb-1 last:mb-0 gap-2">
+                    <div className="text-sm text-gray-700 min-w-0">
+                      <span className="text-gray-400 text-xs mr-1">Baan {row.court_number}:</span>
+                      {name(row.team1_p1)} & {name(row.team1_p2)}
+                      <span className="text-gray-400 mx-1">vs</span>
+                      {name(row.team2_p1)} & {name(row.team2_p2)}
+                      {row.is_completed && row.score_team1 !== null && (
+                        <span className="ml-2 font-mono text-xs text-gray-400">
+                          ({row.score_team1}–{row.score_team2})
+                        </span>
+                      )}
+                      {row.warning && (
+                        <span className="ml-1 text-xs text-amber-600">{row.warning}</span>
+                      )}
+                    </div>
+                    {row.is_completed && onEdit && (
+                      <button
+                        onClick={() => onEdit(row)}
+                        className="text-xs text-gray-400 hover:text-primary transition-colors shrink-0"
+                      >
+                        ✏️
+                      </button>
                     )}
                   </div>
                 ))}
