@@ -152,7 +152,7 @@ export default function TournamentScreen({ tournamentData, onEnd, onReset }) {
       <div className="sticky top-0 z-40 bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-2">
           <span className="text-xl">🎾</span>
-          <span className="font-bold text-gray-900">Padel Americano</span>
+          <span className="font-bold text-gray-900">AMG Padeltoernooi</span>
           {currentRound && (
             <span className="text-xs text-gray-400 ml-1">
               Ronde {currentRound}{settings?.rounds_total ? ` / ${settings.rounds_total}` : ''}

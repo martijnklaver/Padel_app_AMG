@@ -153,7 +153,7 @@ export default function SetupScreen({ onStart }) {
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary-light mb-4">
           <span className="text-3xl">🎾</span>
         </div>
-        <h1 className="text-3xl font-bold text-gray-900">Padel Americano</h1>
+        <h1 className="text-3xl font-bold text-gray-900">AMG Padeltoernooi</h1>
         <p className="text-gray-500 mt-1">Voeg spelers toe om te beginnen</p>
       </div>
 
