@@ -4,25 +4,19 @@ import SetupScreen from './components/SetupScreen'
 import TournamentScreen from './components/TournamentScreen'
 import EndScreen from './components/EndScreen'
 
-console.log('App module loaded')
-
 export default function App() {
-  console.log('App mounted')
-  console.log('Checking tournament status...')
-
   const [screen, setScreen] = useState('loading') // 'loading' | 'setup' | 'tournament' | 'end'
   const [tournamentData, setTournamentData] = useState(null)
+  // Stored separately so Realtime can never wipe it
+  const [finalStandings, setFinalStandings] = useState(null)
 
   const checkActive = useCallback(async () => {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('tournament_settings')
       .select('*')
       .eq('is_active', true)
       .limit(1)
-      .single()
-
-    console.log('Query result:', data, error)
-    console.log('Active tournament:', data, error)
+      .maybeSingle()
 
     if (data) {
       const { data: players } = await supabase.from('players').select('*')
@@ -49,6 +43,8 @@ export default function App() {
           if (payload.new?.is_active === true) {
             checkActive()
           } else {
+            // Don't touch the end screen or finalStandings —
+            // only navigate away from non-end screens
             setScreen((cur) => (cur === 'end' ? cur : 'setup'))
             setTournamentData(null)
           }
@@ -64,11 +60,14 @@ export default function App() {
   }
 
   const handleEnd = (finalPlayers) => {
-    setTournamentData((prev) => ({ ...prev, finalPlayers }))
+    // Save to dedicated state before is_active is set to false
+    // so Realtime can never overwrite it
+    setFinalStandings(finalPlayers)
     setScreen('end')
   }
 
   const handleReset = () => {
+    setFinalStandings(null)
     setTournamentData(null)
     setScreen('setup')
   }
@@ -97,7 +96,7 @@ export default function App() {
   if (screen === 'end') {
     return (
       <EndScreen
-        players={tournamentData?.finalPlayers ?? []}
+        players={finalStandings ?? []}
         onReset={handleReset}
       />
     )

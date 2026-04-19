@@ -71,14 +71,15 @@ export default function TournamentScreen({ tournamentData, onEnd, onReset }) {
       endedRef.current = true
       const { data: finalPlayers } = await supabase.from('players').select('*')
 
+      // Call onEnd FIRST so finalStandings is saved before Realtime fires
+      onEnd(finalPlayers ?? players)
+
       if (settings?.id) {
         await supabase
           .from('tournament_settings')
           .update({ is_active: false })
           .eq('id', settings.id)
       }
-
-      onEnd(finalPlayers ?? players)
       return
     }
 
@@ -100,14 +101,15 @@ export default function TournamentScreen({ tournamentData, onEnd, onReset }) {
     endedRef.current = true
     const { data: finalPlayers } = await supabase.from('players').select('*')
 
+    // Call onEnd FIRST so finalStandings is saved before Realtime fires
+    onEnd(finalPlayers ?? players)
+
     if (settings?.id) {
       await supabase
         .from('tournament_settings')
         .update({ is_active: false })
         .eq('id', settings.id)
     }
-
-    onEnd(finalPlayers ?? players)
   }
 
   const handleEditSaved = () => {
