@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { supabase } from '../../supabaseClient'
 
-export default function PointsScoreInput({ scheduleRow, session, players, onSaved }) {
-  const [s1, setS1] = useState('')
-  const [s2, setS2] = useState('')
+// draft: bestaande matches-rij met is_completed=false (vooraf ingevuld)
+export default function PointsScoreInput({ scheduleRow, session, players, onSaved, draft }) {
+  const [s1, setS1] = useState(draft?.score_team1 != null ? String(draft.score_team1) : '')
+  const [s2, setS2] = useState(draft?.score_team2 != null ? String(draft.score_team2) : '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
 
@@ -25,22 +26,29 @@ export default function PointsScoreInput({ scheduleRow, session, players, onSave
     const norm1 = winner === 1 ? 1.0 : 0.0
     const norm2 = winner === 2 ? 1.0 : 0.0
 
+    const matchData = {
+      session_id: session.id,
+      round_number: scheduleRow.round_number,
+      team1_p1: scheduleRow.team1_p1,
+      team1_p2: scheduleRow.team1_p2,
+      team2_p1: scheduleRow.team2_p1,
+      team2_p2: scheduleRow.team2_p2,
+      score_team1: n1,
+      score_team2: n2,
+      winner,
+      normalized_score_team1: norm1,
+      normalized_score_team2: norm2,
+      is_completed: true,
+    }
+
     try {
-      const { error: mErr } = await supabase.from('matches').insert({
-        session_id: session.id,
-        round_number: scheduleRow.round_number,
-        team1_p1: scheduleRow.team1_p1,
-        team1_p2: scheduleRow.team1_p2,
-        team2_p1: scheduleRow.team2_p1,
-        team2_p2: scheduleRow.team2_p2,
-        score_team1: n1,
-        score_team2: n2,
-        winner,
-        normalized_score_team1: norm1,
-        normalized_score_team2: norm2,
-        is_completed: true,
-      })
-      if (mErr) throw mErr
+      if (draft) {
+        const { error: mErr } = await supabase.from('matches').update(matchData).eq('id', draft.id)
+        if (mErr) throw mErr
+      } else {
+        const { error: mErr } = await supabase.from('matches').insert(matchData)
+        if (mErr) throw mErr
+      }
 
       const { error: sErr } = await supabase
         .from('schedule')
@@ -57,12 +65,10 @@ export default function PointsScoreInput({ scheduleRow, session, players, onSave
 
   return (
     <div>
-      {/* Scorebord: [Team 1] [input – input] [Team 2] op één lijn */}
       <div className="flex items-center gap-2">
         <span className="flex-1 text-right font-semibold text-lg leading-tight text-gray-800">
           {team1}
         </span>
-
         <div className="flex items-center gap-1 shrink-0">
           <input
             type="number"
@@ -82,7 +88,6 @@ export default function PointsScoreInput({ scheduleRow, session, players, onSave
             className="score-input"
           />
         </div>
-
         <span className="flex-1 font-semibold text-lg leading-tight text-gray-800">
           {team2}
         </span>
@@ -93,7 +98,6 @@ export default function PointsScoreInput({ scheduleRow, session, players, onSave
           Som is {n1 + n2}, verwacht {session.points_per_match}
         </p>
       )}
-
       {error && <p className="text-red-500 text-xs text-center mt-2">{error}</p>}
 
       <button

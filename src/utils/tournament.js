@@ -23,6 +23,12 @@ export function generateSchedule(players, totalMatches) {
     }
   }
 
+  // Fisher-Yates shuffle — willekeurige volgorde per sessie
+  for (let i = candidates.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[candidates[i], candidates[j]] = [candidates[j], candidates[i]]
+  }
+
   const matchCount = new Map()
   players.forEach((p) => matchCount.set(p.id, 0))
 

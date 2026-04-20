@@ -127,19 +127,25 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <div className="flex-1 pb-16 overflow-auto">
+      {/* Content: ruimte voor bottom nav op mobiel, top nav op desktop */}
+      <div className="flex-1 pb-16 md:pb-0 md:pt-16 overflow-auto">
         {renderContent()}
       </div>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 flex safe-area-bottom">
+      {/* Mobiel: bottom nav | Desktop: top nav */}
+      <nav className="fixed bottom-0 left-0 right-0 md:bottom-auto md:top-0 bg-white border-t md:border-t-0 md:border-b border-gray-200 z-50 flex md:px-6">
+        {/* Desktop: app naam links */}
+        <div className="hidden md:flex items-center px-4 mr-4 font-bold text-gray-900 text-base shrink-0">
+          🎾 Haarlemboys
+        </div>
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => !tab.disabled && setActiveTab(tab.id)}
-            className={`tab-btn ${activeTab === tab.id ? 'active' : ''} ${tab.disabled ? 'disabled' : ''}`}
+            className={`tab-btn md:flex-none md:flex-row md:gap-2 md:py-4 md:px-5 md:text-sm ${activeTab === tab.id ? 'active' : ''} ${tab.disabled ? 'disabled' : ''}`}
           >
-            <span className="text-xl">{tab.icon}</span>
-            <span className="mt-0.5">{tab.label}</span>
+            <span className="text-xl md:text-lg">{tab.icon}</span>
+            <span className="mt-0.5 md:mt-0 md:font-medium">{tab.label}</span>
           </button>
         ))}
       </nav>

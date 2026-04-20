@@ -25,10 +25,24 @@
   .score-input {
     @apply w-20 h-20 text-3xl font-bold text-center border-2 border-gray-200 rounded-xl
            focus:outline-none focus:border-primary transition-colors;
+    -moz-appearance: textfield;
+    appearance: textfield;
+    line-height: 5rem; /* h-20 = 5rem, zorgt voor verticale centrering */
+    padding: 0;
+  }
+  .score-input::-webkit-inner-spin-button,
+  .score-input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
   }
   .tab-btn {
     @apply flex-1 flex flex-col items-center justify-center py-2 text-xs font-medium
            transition-colors duration-150 text-gray-400;
+  }
+  @media (min-width: 768px) {
+    .tab-btn {
+      @apply flex-none flex-row py-0 px-5 h-16 text-sm;
+    }
   }
   .tab-btn.active {
     @apply text-primary;
