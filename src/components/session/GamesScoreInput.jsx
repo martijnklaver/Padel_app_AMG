@@ -7,6 +7,8 @@ export default function GamesScoreInput({ scheduleRow, session, players, onSaved
   const [error, setError] = useState(null)
 
   const playerName = (id) => players.find((p) => p.id === id)?.name ?? '?'
+  const team1 = `${playerName(scheduleRow.team1_p1)} & ${playerName(scheduleRow.team1_p2)}`
+  const team2 = `${playerName(scheduleRow.team2_p1)} & ${playerName(scheduleRow.team2_p2)}`
 
   const handleSave = async () => {
     if (!selected || saving) return
@@ -49,30 +51,32 @@ export default function GamesScoreInput({ scheduleRow, session, players, onSaved
 
   return (
     <div>
-      <div className="flex gap-3 mb-4">
+      {/* Teamnamen links en rechts van een centraal scorebord */}
+      <div className="flex items-center gap-2 mb-4">
         <button
           onClick={() => setSelected(1)}
-          className={`flex-1 py-4 rounded-xl font-semibold text-sm transition-all ${
+          className={`flex-1 text-right font-semibold text-lg leading-tight rounded-xl py-3 px-2 transition-all ${
             selected === 1
-              ? 'bg-primary text-white shadow-md'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              ? 'text-primary bg-primary/10'
+              : 'text-gray-800 hover:bg-gray-50'
           }`}
         >
-          <div className="font-bold">{playerName(scheduleRow.team1_p1)}</div>
-          <div className="text-xs opacity-75">& {playerName(scheduleRow.team1_p2)}</div>
-          <div className="mt-1 text-lg">{selected === 1 ? '🏆' : ''}</div>
+          {team1}
+          {selected === 1 && <div className="text-sm mt-0.5">🏆</div>}
         </button>
+
+        <div className="shrink-0 w-10 text-center text-gray-300 font-bold text-xl">–</div>
+
         <button
           onClick={() => setSelected(2)}
-          className={`flex-1 py-4 rounded-xl font-semibold text-sm transition-all ${
+          className={`flex-1 text-left font-semibold text-lg leading-tight rounded-xl py-3 px-2 transition-all ${
             selected === 2
-              ? 'bg-primary text-white shadow-md'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              ? 'text-primary bg-primary/10'
+              : 'text-gray-800 hover:bg-gray-50'
           }`}
         >
-          <div className="font-bold">{playerName(scheduleRow.team2_p1)}</div>
-          <div className="text-xs opacity-75">& {playerName(scheduleRow.team2_p2)}</div>
-          <div className="mt-1 text-lg">{selected === 2 ? '🏆' : ''}</div>
+          {team2}
+          {selected === 2 && <div className="text-sm mt-0.5">🏆</div>}
         </button>
       </div>
 

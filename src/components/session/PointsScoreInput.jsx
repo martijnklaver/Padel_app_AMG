@@ -13,13 +13,15 @@ export default function PointsScoreInput({ scheduleRow, session, players, onSave
   const showWarn = s1 !== '' && s2 !== '' && !sumOk
 
   const playerName = (id) => players.find((p) => p.id === id)?.name ?? '?'
+  const team1 = `${playerName(scheduleRow.team1_p1)} & ${playerName(scheduleRow.team1_p2)}`
+  const team2 = `${playerName(scheduleRow.team2_p1)} & ${playerName(scheduleRow.team2_p2)}`
 
   const handleSave = async () => {
     if (s1 === '' || s2 === '' || saving) return
     setSaving(true)
     setError(null)
 
-    const winner = n1 > n2 ? 1 : n2 > n1 ? 2 : 1 // tiebreak → team 1
+    const winner = n1 > n2 ? 1 : n2 > n1 ? 2 : 1
     const norm1 = winner === 1 ? 1.0 : 0.0
     const norm2 = winner === 2 ? 1.0 : 0.0
 
@@ -55,30 +57,35 @@ export default function PointsScoreInput({ scheduleRow, session, players, onSave
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-3 text-xs font-medium text-gray-500">
-        <span>{playerName(scheduleRow.team1_p1)} & {playerName(scheduleRow.team1_p2)}</span>
-        <span className="text-gray-300">vs</span>
-        <span>{playerName(scheduleRow.team2_p1)} & {playerName(scheduleRow.team2_p2)}</span>
-      </div>
+      {/* Scorebord: [Team 1] [input – input] [Team 2] op één lijn */}
+      <div className="flex items-center gap-2">
+        <span className="flex-1 text-right font-semibold text-lg leading-tight text-gray-800">
+          {team1}
+        </span>
 
-      <div className="flex items-center gap-3 justify-center">
-        <input
-          type="number"
-          min="0"
-          value={s1}
-          onChange={(e) => setS1(e.target.value)}
-          placeholder="0"
-          className="score-input"
-        />
-        <span className="text-gray-400 font-bold text-xl">–</span>
-        <input
-          type="number"
-          min="0"
-          value={s2}
-          onChange={(e) => setS2(e.target.value)}
-          placeholder="0"
-          className="score-input"
-        />
+        <div className="flex items-center gap-1 shrink-0">
+          <input
+            type="number"
+            min="0"
+            value={s1}
+            onChange={(e) => setS1(e.target.value)}
+            placeholder="0"
+            className="score-input"
+          />
+          <span className="text-gray-400 font-bold text-xl px-0.5">–</span>
+          <input
+            type="number"
+            min="0"
+            value={s2}
+            onChange={(e) => setS2(e.target.value)}
+            placeholder="0"
+            className="score-input"
+          />
+        </div>
+
+        <span className="flex-1 font-semibold text-lg leading-tight text-gray-800">
+          {team2}
+        </span>
       </div>
 
       {showWarn && (
