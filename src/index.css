@@ -26,4 +26,14 @@
     @apply w-20 h-20 text-3xl font-bold text-center border-2 border-gray-200 rounded-xl
            focus:outline-none focus:border-primary transition-colors;
   }
+  .tab-btn {
+    @apply flex-1 flex flex-col items-center justify-center py-2 text-xs font-medium
+           transition-colors duration-150 text-gray-400;
+  }
+  .tab-btn.active {
+    @apply text-primary;
+  }
+  .tab-btn.disabled {
+    @apply opacity-30 cursor-not-allowed;
+  }
 }

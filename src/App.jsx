@@ -1,110 +1,148 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from './supabaseClient'
-import SetupScreen from './components/SetupScreen'
-import TournamentScreen from './components/TournamentScreen'
-import EndScreen from './components/EndScreen'
+import { supabase, subscribeToSessions } from './supabaseClient'
+import LoadingSpinner from './components/shared/LoadingSpinner'
+import HomeScreen from './components/home/HomeScreen'
+import ActiveSessionScreen from './components/session/ActiveSessionScreen'
+import EndSessionScreen from './components/session/EndSessionScreen'
+import InsightsScreen from './components/insights/InsightsScreen'
 
 export default function App() {
-  const [screen, setScreen] = useState('loading') // 'loading' | 'setup' | 'tournament' | 'end'
-  const [tournamentData, setTournamentData] = useState(null)
-  // Stored separately so Realtime can never wipe it
-  const [finalStandings, setFinalStandings] = useState(null)
-  const [allUniquePlayed, setAllUniquePlayed] = useState(false)
+  const [players, setPlayers] = useState([])
+  const [activeSession, setActiveSession] = useState(null)
+  const [activeTab, setActiveTab] = useState('home')
+  const [loading, setLoading] = useState(true)
+  // Preserved so realtime can't wipe it after session ends
+  const [endedSession, setEndedSession] = useState(null)
 
-  const checkActive = useCallback(async () => {
-    const { data } = await supabase
-      .from('tournament_settings')
-      .select('*')
-      .eq('is_active', true)
-      .limit(1)
-      .maybeSingle()
-
-    if (data) {
-      const { data: players } = await supabase.from('players').select('*')
-      setTournamentData({ players: players ?? [], settings: data })
-      setScreen('tournament')
-    } else {
-      setScreen((cur) => (cur === 'loading' || cur === 'tournament' ? 'setup' : cur))
-    }
+  const loadInitialData = useCallback(async () => {
+    const [{ data: playersData }, { data: activeData }] = await Promise.all([
+      supabase.from('players').select('*').order('name'),
+      supabase.from('sessions').select('*').eq('is_active', true).limit(1).maybeSingle(),
+    ])
+    setPlayers(playersData ?? [])
+    setActiveSession(activeData ?? null)
+    if (activeData) setActiveTab('active')
+    setLoading(false)
   }, [])
 
-  // Check on mount
   useEffect(() => {
-    checkActive()
-  }, [checkActive])
+    loadInitialData()
+  }, [loadInitialData])
 
-  // Realtime: navigate when tournament starts or stops on any device
+  // Realtime: sync active session state across devices
   useEffect(() => {
-    const channel = supabase
-      .channel('app-settings-watch')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'tournament_settings' },
-        (payload) => {
-          if (payload.new?.is_active === true) {
-            checkActive()
-          } else {
-            // Don't touch the end screen or finalStandings —
-            // only navigate away from non-end screens
-            setScreen((cur) => (cur === 'end' ? cur : 'setup'))
-            setTournamentData(null)
-          }
-        }
+    const unsub = subscribeToSessions(async () => {
+      const { data } = await supabase
+        .from('sessions')
+        .select('*')
+        .eq('is_active', true)
+        .limit(1)
+        .maybeSingle()
+      setActiveSession(data ?? null)
+      if (data) setActiveTab('active')
+    })
+    return unsub
+  }, [])
+
+  const handleSessionCreated = (session) => {
+    setActiveSession(session)
+    setEndedSession(null)
+    setActiveTab('active')
+  }
+
+  const handleSessionEnd = (session) => {
+    setEndedSession(session)
+    setActiveSession(null)
+    setActiveTab('active') // Shows EndSessionScreen
+  }
+
+  const handleBackToHome = () => {
+    setEndedSession(null)
+    setActiveTab('home')
+  }
+
+  if (loading) return <LoadingSpinner />
+
+  const tabs = [
+    { id: 'home', icon: '🏠', label: 'Home' },
+    { id: 'active', icon: '🎾', label: 'Actief', disabled: !activeSession && !endedSession },
+    { id: 'insights', icon: '📊', label: 'Inzichten' },
+  ]
+
+  const renderContent = () => {
+    if (activeTab === 'home') {
+      return (
+        <HomeScreen
+          players={players}
+          onSessionCreated={handleSessionCreated}
+          onSelectSession={(session) => {
+            if (session.is_active) {
+              setActiveSession(session)
+              setEndedSession(null)
+              setActiveTab('active')
+            } else {
+              setEndedSession(session)
+              setActiveSession(null)
+              setActiveTab('active')
+            }
+          }}
+        />
       )
-      .subscribe()
-    return () => supabase.removeChannel(channel)
-  }, [checkActive])
+    }
 
-  const handleStart = (data) => {
-    setTournamentData(data)
-    setScreen('tournament')
-  }
-
-  const handleEnd = (finalPlayers, allUnique = false) => {
-    // Save to dedicated state before is_active is set to false
-    // so Realtime can never overwrite it
-    setFinalStandings(finalPlayers)
-    setAllUniquePlayed(allUnique)
-    setScreen('end')
-  }
-
-  const handleReset = () => {
-    setFinalStandings(null)
-    setAllUniquePlayed(false)
-    setTournamentData(null)
-    setScreen('setup')
-  }
-
-  if (screen === 'loading') {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-gray-500 text-sm">Laden...</p>
+    if (activeTab === 'active') {
+      if (endedSession && !activeSession) {
+        return (
+          <EndSessionScreen
+            session={endedSession}
+            players={players}
+            onBack={handleBackToHome}
+          />
+        )
+      }
+      if (activeSession) {
+        return (
+          <ActiveSessionScreen
+            session={activeSession}
+            players={players}
+            onSessionEnd={handleSessionEnd}
+          />
+        )
+      }
+      return (
+        <div className="flex-1 flex items-center justify-center p-8 text-center text-gray-400">
+          <div>
+            <div className="text-5xl mb-4">🎾</div>
+            <p className="text-lg font-medium">Geen actieve sessie</p>
+            <p className="text-sm mt-1">Start een nieuwe sessie via Home</p>
+          </div>
         </div>
+      )
+    }
+
+    if (activeTab === 'insights') {
+      return <InsightsScreen players={players} />
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <div className="flex-1 pb-16 overflow-auto">
+        {renderContent()}
       </div>
-    )
-  }
 
-  if (screen === 'tournament') {
-    return (
-      <TournamentScreen
-        tournamentData={tournamentData}
-        onEnd={handleEnd}
-        onReset={handleReset}
-      />
-    )
-  }
-
-  if (screen === 'end') {
-    return (
-      <EndScreen
-        players={finalStandings ?? []}
-        onReset={handleReset}
-        allUniquePlayed={allUniquePlayed}
-      />
-    )
-  }
-
-  return <SetupScreen onStart={handleStart} />
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 flex safe-area-bottom">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => !tab.disabled && setActiveTab(tab.id)}
+            className={`tab-btn ${activeTab === tab.id ? 'active' : ''} ${tab.disabled ? 'disabled' : ''}`}
+          >
+            <span className="text-xl">{tab.icon}</span>
+            <span className="mt-0.5">{tab.label}</span>
+          </button>
+        ))}
+      </nav>
+    </div>
+  )
 }
