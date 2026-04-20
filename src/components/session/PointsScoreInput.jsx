@@ -1,10 +1,9 @@
 import { useState } from 'react'
 import { supabase } from '../../supabaseClient'
 
-// draft: bestaande matches-rij met is_completed=false (vooraf ingevuld)
-export default function PointsScoreInput({ scheduleRow, session, players, onSaved, draft }) {
-  const [s1, setS1] = useState(draft?.score_team1 != null ? String(draft.score_team1) : '')
-  const [s2, setS2] = useState(draft?.score_team2 != null ? String(draft.score_team2) : '')
+export default function PointsScoreInput({ scheduleRow, session, players, onSaved }) {
+  const [s1, setS1] = useState('')
+  const [s2, setS2] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
 
@@ -23,32 +22,23 @@ export default function PointsScoreInput({ scheduleRow, session, players, onSave
     setError(null)
 
     const winner = n1 > n2 ? 1 : n2 > n1 ? 2 : 1
-    const norm1 = winner === 1 ? 1.0 : 0.0
-    const norm2 = winner === 2 ? 1.0 : 0.0
-
-    const matchData = {
-      session_id: session.id,
-      round_number: scheduleRow.round_number,
-      team1_p1: scheduleRow.team1_p1,
-      team1_p2: scheduleRow.team1_p2,
-      team2_p1: scheduleRow.team2_p1,
-      team2_p2: scheduleRow.team2_p2,
-      score_team1: n1,
-      score_team2: n2,
-      winner,
-      normalized_score_team1: norm1,
-      normalized_score_team2: norm2,
-      is_completed: true,
-    }
 
     try {
-      if (draft) {
-        const { error: mErr } = await supabase.from('matches').update(matchData).eq('id', draft.id)
-        if (mErr) throw mErr
-      } else {
-        const { error: mErr } = await supabase.from('matches').insert(matchData)
-        if (mErr) throw mErr
-      }
+      const { error: mErr } = await supabase.from('matches').insert({
+        session_id: session.id,
+        round_number: scheduleRow.round_number,
+        team1_p1: scheduleRow.team1_p1,
+        team1_p2: scheduleRow.team1_p2,
+        team2_p1: scheduleRow.team2_p1,
+        team2_p2: scheduleRow.team2_p2,
+        score_team1: n1,
+        score_team2: n2,
+        winner,
+        normalized_score_team1: winner === 1 ? 1.0 : 0.0,
+        normalized_score_team2: winner === 2 ? 1.0 : 0.0,
+        is_completed: true,
+      })
+      if (mErr) throw mErr
 
       const { error: sErr } = await supabase
         .from('schedule')

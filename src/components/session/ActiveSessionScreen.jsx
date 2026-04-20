@@ -148,12 +148,13 @@ export default function ActiveSessionScreen({ session, players, onSessionEnd }) 
         />
       )}
 
-      {/* Schema accordion */}
+      {/* Schema accordion — bevat score invoer voor alle rondes */}
       <ScheduleAccordion
         schedule={schedule}
         matches={matches}
         players={players}
         session={session}
+        onScoreSaved={handleScoreSaved}
       />
 
       {/* Live ranking — altijd zichtbaar, herlaadt via matches state */}

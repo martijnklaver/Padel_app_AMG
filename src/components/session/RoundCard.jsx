@@ -70,21 +70,17 @@ export default function RoundCard({
             ) : !muted ? (
               session.score_mode === 'points' ? (
                 <PointsScoreInput
-                  key={match?.id ?? row.id}
                   scheduleRow={row}
                   session={session}
                   players={players}
                   onSaved={onScoreSaved}
-                  draft={match}
                 />
               ) : (
                 <GamesScoreInput
-                  key={match?.id ?? row.id}
                   scheduleRow={row}
                   session={session}
                   players={players}
                   onSaved={onScoreSaved}
-                  draft={match}
                 />
               )
             ) : (
