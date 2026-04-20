@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase, subscribeToAll } from '../supabaseClient'
+import { maxUniqueMatches } from '../utils/tournament'
 import ScoreInput from './ScoreInput'
 import BenchDisplay from './BenchDisplay'
 import RankingFooter from './RankingFooter'
@@ -70,9 +71,12 @@ export default function TournamentScreen({ tournamentData, onEnd, onReset }) {
     if (nextRows.length === 0) {
       endedRef.current = true
       const { data: finalPlayers } = await supabase.from('players').select('*')
+      const fp = finalPlayers ?? players
+      const completedCount = freshSchedule.filter((r) => r.is_completed).length
+      const allUnique = fp.length > 0 && completedCount >= maxUniqueMatches(fp.length)
 
       // Call onEnd FIRST so finalStandings is saved before Realtime fires
-      onEnd(finalPlayers ?? players)
+      onEnd(fp, allUnique)
 
       if (settings?.id) {
         await supabase

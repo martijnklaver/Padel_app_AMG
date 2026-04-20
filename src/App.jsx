@@ -9,6 +9,7 @@ export default function App() {
   const [tournamentData, setTournamentData] = useState(null)
   // Stored separately so Realtime can never wipe it
   const [finalStandings, setFinalStandings] = useState(null)
+  const [allUniquePlayed, setAllUniquePlayed] = useState(false)
 
   const checkActive = useCallback(async () => {
     const { data } = await supabase
@@ -59,15 +60,17 @@ export default function App() {
     setScreen('tournament')
   }
 
-  const handleEnd = (finalPlayers) => {
+  const handleEnd = (finalPlayers, allUnique = false) => {
     // Save to dedicated state before is_active is set to false
     // so Realtime can never overwrite it
     setFinalStandings(finalPlayers)
+    setAllUniquePlayed(allUnique)
     setScreen('end')
   }
 
   const handleReset = () => {
     setFinalStandings(null)
+    setAllUniquePlayed(false)
     setTournamentData(null)
     setScreen('setup')
   }
@@ -98,6 +101,7 @@ export default function App() {
       <EndScreen
         players={finalStandings ?? []}
         onReset={handleReset}
+        allUniquePlayed={allUniquePlayed}
       />
     )
   }

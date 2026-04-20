@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { supabase } from '../supabaseClient'
 import { computeRanking } from '../utils/tournament'
 
-export default function EndScreen({ players, onReset }) {
+export default function EndScreen({ players, onReset, allUniquePlayed = false }) {
   const [resetting, setResetting] = useState(false)
   const ranked = computeRanking(players)
 
@@ -22,7 +22,9 @@ export default function EndScreen({ players, onReset }) {
       <div className="mb-8 text-center">
         <div className="text-6xl mb-4">🏆</div>
         <h1 className="text-3xl font-bold text-gray-900">Toernooi afgelopen!</h1>
-        <p className="text-gray-500 mt-1">Eindstand</p>
+        <p className="text-gray-500 mt-1">
+          {allUniquePlayed ? 'Alle unieke wedstrijden zijn gespeeld.' : 'Eindstand'}
+        </p>
       </div>
 
       <div className="w-full max-w-md card mb-6">

@@ -1,17 +1,18 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
-import { generateSchedule, getDefaultTotalMatches } from '../utils/tournament'
+import { generateSchedule, getDefaultTotalMatches, maxUniqueMatches } from '../utils/tournament'
 
 function isFair(totalMatches, numPlayers) {
   return (totalMatches * 4) % numPlayers === 0
 }
 
-function nearestFair(totalMatches, numPlayers) {
+function nearestFair(totalMatches, numPlayers, max = Infinity) {
   let lower = totalMatches - 1
   while (lower >= 1 && (lower * 4) % numPlayers !== 0) lower--
   let higher = totalMatches + 1
-  while (higher <= totalMatches + numPlayers && (higher * 4) % numPlayers !== 0) higher++
-  return { lower: lower >= 1 ? lower : null, higher }
+  while (higher <= Math.min(totalMatches + numPlayers, max) && (higher * 4) % numPlayers !== 0) higher++
+  const higherValid = higher <= max && (higher * 4) % numPlayers === 0 ? higher : null
+  return { lower: lower >= 1 ? lower : null, higher: higherValid }
 }
 
 export default function SetupScreen({ onStart }) {
@@ -140,10 +141,11 @@ export default function SetupScreen({ onStart }) {
     }
   }
 
+  const maxMatches = players.length >= 4 ? maxUniqueMatches(players.length) : 0
   const fair = players.length >= 4 && isFair(totalMatches, players.length)
   const { lower, higher } =
     players.length >= 4 && !fair
-      ? nearestFair(totalMatches, players.length)
+      ? nearestFair(totalMatches, players.length, maxMatches)
       : { lower: null, higher: null }
 
   return (
@@ -235,9 +237,18 @@ export default function SetupScreen({ onStart }) {
                 label="Totaal aantal wedstrijden"
                 value={totalMatches}
                 min={1}
+                max={maxMatches}
                 onChange={setTotalMatches}
               />
-              <div className="mt-2 ml-0">
+              <div className="mt-2 ml-0 space-y-1">
+                <p className="text-xs text-gray-400">
+                  Maximum unieke wedstrijden bij {players.length} spelers: <strong>{maxMatches}</strong>
+                </p>
+                {totalMatches >= maxMatches && (
+                  <p className="text-xs text-blue-600">
+                    Maximaal {maxMatches} wedstrijden mogelijk bij {players.length} spelers.
+                  </p>
+                )}
                 {fair ? (
                   <p className="text-sm text-green-600">
                     ✅ Elke speler speelt{' '}
@@ -261,13 +272,15 @@ export default function SetupScreen({ onStart }) {
                           {lower}
                         </button>
                       )}
-                      <button
-                        onClick={() => setTotalMatches(higher)}
-                        className="px-3 py-1 rounded-full border border-amber-300 text-amber-700
-                                   text-xs font-semibold hover:bg-amber-50 transition-colors"
-                      >
-                        {higher}
-                      </button>
+                      {higher !== null && (
+                        <button
+                          onClick={() => setTotalMatches(higher)}
+                          className="px-3 py-1 rounded-full border border-amber-300 text-amber-700
+                                     text-xs font-semibold hover:bg-amber-50 transition-colors"
+                        >
+                          {higher}
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}

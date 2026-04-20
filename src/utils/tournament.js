@@ -15,23 +15,37 @@ export function computeRanking(players) {
     })
 }
 
-export function getRecommendedMatches(playerCount, numCourts) {
-  const uniquePairs = (playerCount * (playerCount - 1)) / 2
-  return Math.ceil(uniquePairs / Math.max(numCourts, 1))
+// C(N,4) * 3 — exact maximum unique matches for N players
+export function maxUniqueMatches(playerCount) {
+  if (playerCount < 4) return 0
+  const n = playerCount
+  return Math.round((n * (n - 1) * (n - 2) * (n - 3)) / 24) * 3
 }
 
 export function getDefaultTotalMatches(playerCount, numCourts) {
-  const matchesPerPlayer = getRecommendedMatches(playerCount, numCourts)
-  return Math.ceil((matchesPerPlayer * playerCount) / 4)
+  const uniquePairs = (playerCount * (playerCount - 1)) / 2
+  const matchesPerPlayer = Math.ceil(uniquePairs / Math.max(numCourts, 1))
+  const suggested = Math.ceil((matchesPerPlayer * playerCount) / 4)
+  return Math.min(suggested, maxUniqueMatches(playerCount))
 }
 
-const pairKey = (a, b) => (a < b ? `${a}__${b}` : `${b}__${a}`)
-const getCount = (map, a, b) => map.get(pairKey(a, b)) || 0
-const incCount = (map, a, b) => map.set(pairKey(a, b), getCount(map, a, b) + 1)
-
 export function generateSchedule(players, numCourts, totalMatches) {
-  const partnerCount = new Map()
-  const opponentCount = new Map()
+  // Pre-generate full candidate list: C(N,4) * 3 unique matches
+  const n = players.length
+  const candidates = []
+  for (let i = 0; i < n - 3; i++) {
+    for (let j = i + 1; j < n - 2; j++) {
+      for (let k = j + 1; k < n - 1; k++) {
+        for (let l = k + 1; l < n; l++) {
+          const four = [players[i], players[j], players[k], players[l]]
+          candidates.push({ t1: [four[0], four[1]], t2: [four[2], four[3]] })
+          candidates.push({ t1: [four[0], four[2]], t2: [four[1], four[3]] })
+          candidates.push({ t1: [four[0], four[3]], t2: [four[1], four[2]] })
+        }
+      }
+    }
+  }
+
   const matchCount = new Map()
   players.forEach((p) => matchCount.set(p.id, 0))
 
@@ -39,7 +53,7 @@ export function generateSchedule(players, numCourts, totalMatches) {
   let totalScheduled = 0
   let round = 1
 
-  while (totalScheduled < totalMatches) {
+  while (totalScheduled < totalMatches && candidates.length > 0) {
     const courtsThisRound = Math.min(numCourts, totalMatches - totalScheduled)
     const usedThisRound = new Set()
     const courts = []
@@ -48,63 +62,30 @@ export function generateSchedule(players, numCourts, totalMatches) {
       const available = players.filter((p) => !usedThisRound.has(p.id))
       if (available.length < 4) break
 
-      let bestScore = Infinity
-      let bestMatch = null
+      const availableIds = new Set(available.map((p) => p.id))
 
-      // Evaluate all C(available,4) × 3 team splits
-      for (let i = 0; i < available.length - 3; i++) {
-        for (let j = i + 1; j < available.length - 2; j++) {
-          for (let k = j + 1; k < available.length - 1; k++) {
-            for (let l = k + 1; l < available.length; l++) {
-              const four = [available[i], available[j], available[k], available[l]]
-              const splits = [
-                [[four[0], four[1]], [four[2], four[3]]],
-                [[four[0], four[2]], [four[1], four[3]]],
-                [[four[0], four[3]], [four[1], four[2]]],
-              ]
+      // Find the unique candidate where all 4 players are available.
+      // Tiebreaker: prefer players with fewest matches played (bench fairness).
+      let bestIdx = -1
+      let bestPlayTotal = Infinity
 
-              for (const [t1, t2] of splits) {
-                const pPartner =
-                  getCount(partnerCount, t1[0].id, t1[1].id) +
-                  getCount(partnerCount, t2[0].id, t2[1].id)
-                const pOpponent =
-                  getCount(opponentCount, t1[0].id, t2[0].id) +
-                  getCount(opponentCount, t1[0].id, t2[1].id) +
-                  getCount(opponentCount, t1[1].id, t2[0].id) +
-                  getCount(opponentCount, t1[1].id, t2[1].id)
-
-                // Priority 0: fully new; 1: repeated partners only; 2: repeated opponents
-                const priority = pOpponent > 0 ? 2 : pPartner > 0 ? 1 : 0
-
-                // Tiebreaker: prefer players who played least (lower total = better)
-                const playTotal = [...t1, ...t2].reduce(
-                  (sum, p) => sum + matchCount.get(p.id),
-                  0
-                )
-
-                const score = priority * 10000 + playTotal
-                if (score < bestScore) {
-                  bestScore = score
-                  bestMatch = { t1, t2, pPartner, pOpponent }
-                }
-              }
-            }
-          }
+      for (let idx = 0; idx < candidates.length; idx++) {
+        const { t1, t2 } = candidates[idx]
+        if (![...t1, ...t2].every((p) => availableIds.has(p.id))) continue
+        const playTotal = [...t1, ...t2].reduce(
+          (sum, p) => sum + matchCount.get(p.id),
+          0
+        )
+        if (playTotal < bestPlayTotal) {
+          bestPlayTotal = playTotal
+          bestIdx = idx
         }
       }
 
-      if (!bestMatch) break
+      if (bestIdx === -1) break
 
-      const { t1, t2 } = bestMatch
-
-      const warns = []
-      if (getCount(partnerCount, t1[0].id, t1[1].id) > 0)
-        warns.push(`⚠️ ${t1[0].name} & ${t1[1].name} speelden al samen`)
-      if (getCount(partnerCount, t2[0].id, t2[1].id) > 0)
-        warns.push(`⚠️ ${t2[0].name} & ${t2[1].name} speelden al samen`)
-      if (bestMatch.pOpponent > 0)
-        warns.push(`⚠️ deze tegenstanders stonden al tegenover elkaar`)
-      const warning = warns.length > 0 ? warns.join(' | ') : null
+      const { t1, t2 } = candidates[bestIdx]
+      candidates.splice(bestIdx, 1) // Permanently remove — never repeat
 
       courts.push({
         court,
@@ -112,19 +93,12 @@ export function generateSchedule(players, numCourts, totalMatches) {
         team1_p2: t1[1],
         team2_p1: t2[0],
         team2_p2: t2[1],
-        warning,
+        warning: null,
       })
 
       for (const p of [...t1, ...t2]) {
         usedThisRound.add(p.id)
         matchCount.set(p.id, matchCount.get(p.id) + 1)
-      }
-      incCount(partnerCount, t1[0].id, t1[1].id)
-      incCount(partnerCount, t2[0].id, t2[1].id)
-      for (const p1 of t1) {
-        for (const p2 of t2) {
-          incCount(opponentCount, p1.id, p2.id)
-        }
       }
     }
 
@@ -133,7 +107,11 @@ export function generateSchedule(players, numCourts, totalMatches) {
     const playingIds = new Set(
       courts.flatMap((c) => [c.team1_p1.id, c.team1_p2.id, c.team2_p1.id, c.team2_p2.id])
     )
-    schedule.push({ round, courts, bench: players.filter((p) => !playingIds.has(p.id)) })
+    schedule.push({
+      round,
+      courts,
+      bench: players.filter((p) => !playingIds.has(p.id)),
+    })
     totalScheduled += courts.length
     round++
   }
