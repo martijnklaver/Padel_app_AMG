@@ -129,9 +129,51 @@ export function computeRankingFromMatches(players, matches) {
     })
 }
 
+// Points-mode ranking: uses actual scores, not win/loss
+export function computePointsRankingFromMatches(players, matches) {
+  const stats = new Map(players.map((p) => [p.id, { pointsWon: 0, pointsPlayed: 0 }]))
+
+  for (const m of matches) {
+    if (!m.is_completed) continue
+    const total = (m.score_team1 ?? 0) + (m.score_team2 ?? 0)
+    for (const pid of [m.team1_p1, m.team1_p2]) {
+      if (stats.has(pid)) {
+        stats.get(pid).pointsWon += m.score_team1 ?? 0
+        stats.get(pid).pointsPlayed += total
+      }
+    }
+    for (const pid of [m.team2_p1, m.team2_p2]) {
+      if (stats.has(pid)) {
+        stats.get(pid).pointsWon += m.score_team2 ?? 0
+        stats.get(pid).pointsPlayed += total
+      }
+    }
+  }
+
+  return players
+    .map((p) => ({
+      ...p,
+      pointsWon: stats.get(p.id)?.pointsWon ?? 0,
+      pointsPlayed: stats.get(p.id)?.pointsPlayed ?? 0,
+      pct:
+        (stats.get(p.id)?.pointsPlayed ?? 0) > 0
+          ? ((stats.get(p.id).pointsWon / stats.get(p.id).pointsPlayed) * 100).toFixed(1)
+          : null,
+    }))
+    .sort((a, b) => {
+      const pa = a.pct !== null ? parseFloat(a.pct) : -Infinity
+      const pb = b.pct !== null ? parseFloat(b.pct) : -Infinity
+      if (pb !== pa) return pb - pa
+      return b.pointsWon - a.pointsWon
+    })
+}
+
 export function computeSessionRanking(session, players, matches) {
   const sessionPlayers = players.filter((p) => session.player_ids.includes(p.id))
   const sessionMatches = matches.filter((m) => m.session_id === session.id)
+  if (session.score_mode === 'points') {
+    return computePointsRankingFromMatches(sessionPlayers, sessionMatches)
+  }
   return computeRankingFromMatches(sessionPlayers, sessionMatches)
 }
 

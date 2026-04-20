@@ -25,7 +25,7 @@ export default function EndSessionScreen({ session, players, onBack }) {
 
   const sessionPlayers = players.filter((p) => session.player_ids.includes(p.id))
   const ranking = loading ? [] : computeSessionRanking(session, players, matches)
-
+  const isPoints = session.score_mode === 'points'
   const medals = ['🏆', '🥈', '🥉']
 
   return (
@@ -47,9 +47,19 @@ export default function EndSessionScreen({ session, players, onBack }) {
               <tr className="text-gray-400 text-xs border-b border-gray-100">
                 <th className="text-left pb-2 font-medium">#</th>
                 <th className="text-left pb-2 font-medium">Naam</th>
-                <th className="text-right pb-2 font-medium">Gew.</th>
-                <th className="text-right pb-2 font-medium">Gesp.</th>
-                <th className="text-right pb-2 font-medium">Win%</th>
+                {isPoints ? (
+                  <>
+                    <th className="text-right pb-2 font-medium">Pnt. gew.</th>
+                    <th className="text-right pb-2 font-medium">Pnt. gesp.</th>
+                    <th className="text-right pb-2 font-medium">%</th>
+                  </>
+                ) : (
+                  <>
+                    <th className="text-right pb-2 font-medium">Gew.</th>
+                    <th className="text-right pb-2 font-medium">Gesp.</th>
+                    <th className="text-right pb-2 font-medium">Win%</th>
+                  </>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -57,9 +67,19 @@ export default function EndSessionScreen({ session, players, onBack }) {
                 <tr key={p.id} className={i === 0 ? 'font-bold text-primary' : 'text-gray-700'}>
                   <td className="py-2">{medals[i] ?? i + 1}</td>
                   <td className="py-2">{p.name}</td>
-                  <td className="text-right py-2">{p.wins}</td>
-                  <td className="text-right py-2">{p.played}</td>
-                  <td className="text-right py-2">{p.winPct !== null ? `${p.winPct}%` : '–'}</td>
+                  {isPoints ? (
+                    <>
+                      <td className="text-right py-2">{p.pointsWon}</td>
+                      <td className="text-right py-2">{p.pointsPlayed}</td>
+                      <td className="text-right py-2">{p.pct !== null ? `${p.pct}%` : '–'}</td>
+                    </>
+                  ) : (
+                    <>
+                      <td className="text-right py-2">{p.wins}</td>
+                      <td className="text-right py-2">{p.played}</td>
+                      <td className="text-right py-2">{p.winPct !== null ? `${p.winPct}%` : '–'}</td>
+                    </>
+                  )}
                 </tr>
               ))}
             </tbody>
