@@ -116,7 +116,7 @@ export default function ActiveSessionScreen({ session, players, onSessionEnd }) 
   })
 
   return (
-    <div className="max-w-lg mx-auto p-4 pb-36">
+    <div className="max-w-lg mx-auto p-4 pb-20">
       {/* Header */}
       <div className="mb-4">
         <p className="text-xs text-gray-400">{dateStr}</p>
@@ -156,6 +156,9 @@ export default function ActiveSessionScreen({ session, players, onSessionEnd }) 
         session={session}
       />
 
+      {/* Live ranking — altijd zichtbaar, herlaadt via matches state */}
+      <LiveRanking session={session} players={players} matches={matches} />
+
       {/* Stop knop */}
       <div className="mt-4">
         <button
@@ -165,9 +168,6 @@ export default function ActiveSessionScreen({ session, players, onSessionEnd }) 
           Stop sessie
         </button>
       </div>
-
-      {/* Live ranking */}
-      <LiveRanking session={session} players={players} matches={matches} />
 
       {/* Dialogen */}
       {showStop && (
