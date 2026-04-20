@@ -1,297 +1,179 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { supabase, subscribeToAll } from '../supabaseClient'
+import { supabase } from '../supabaseClient'
+import { pickNextMatch } from '../utils/tournament'
 import ScoreInput from './ScoreInput'
 import BenchDisplay from './BenchDisplay'
+import MatchHistory from './MatchHistory'
 import RankingFooter from './RankingFooter'
-import ScheduleView from './ScheduleView'
-import EditMatchDialog from './EditMatchDialog'
 
-export default function TournamentScreen({ tournamentData, onEnd, onReset }) {
-  const [schedule, setSchedule] = useState([])
-  const [players, setPlayers] = useState(tournamentData?.players ?? [])
-  const [settings, setSettings] = useState(tournamentData?.settings ?? null)
+export default function TournamentScreen({ initialPlayers, onReset }) {
+  const [players, setPlayers] = useState([])
+  const [matches, setMatches] = useState([])
+  const [currentMatch, setCurrentMatch] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [showStopDialog, setShowStopDialog] = useState(false)
-  const [editRow, setEditRow] = useState(null)
-  // Prevents double-navigation when current device triggers the end
-  const endedRef = useRef(false)
+  // Ref to hold latest players/matches for refreshData without stale closure
+  const stateRef = useRef({ players: [], matches: [] })
 
-  const fetchData = useCallback(async () => {
-    const [{ data: freshPlayers }, { data: freshSchedule }, { data: freshSettings }] =
-      await Promise.all([
-        supabase.from('players').select('*'),
-        supabase.from('schedule').select('*').order('round_number').order('court_number'),
-        supabase.from('tournament_settings').select('*').eq('is_active', true).maybeSingle(),
-      ])
-
-    // Tournament was reset/stopped from another device
-    if (!freshSettings && !endedRef.current) {
-      endedRef.current = true
-      onReset()
-      return
-    }
-
-    if (freshPlayers) setPlayers(freshPlayers)
-    if (freshSchedule) setSchedule(freshSchedule)
-    if (freshSettings) setSettings(freshSettings)
-  }, [onReset])
-
-  // Initial load
   useEffect(() => {
-    fetchData().then(() => setLoading(false))
-  }, [fetchData])
+    stateRef.current = { players, matches }
+  }, [players, matches])
 
-  // Realtime subscription — syncs across all devices
+  // ── Bootstrap: insert players & create first pending match ──
   useEffect(() => {
-    const unsub = subscribeToAll(fetchData)
-    return unsub
-  }, [fetchData])
+    let cancelled = false
 
-  // After a score is saved: check if round is complete → advance or end
-  const handleScoreSaved = useCallback(async () => {
-    const { data: freshSchedule } = await supabase
-      .from('schedule')
-      .select('*')
-      .order('round_number')
-      .order('court_number')
+    const bootstrap = async () => {
+      const inserts = initialPlayers.map((name) => ({ name }))
+      const { data: inserted, error: pErr } = await supabase
+        .from('players')
+        .insert(inserts)
+        .select()
 
-    if (!freshSchedule) return
-    setSchedule(freshSchedule)
-
-    const currentRows = freshSchedule.filter((r) => r.is_current)
-    if (currentRows.length === 0) return
-
-    const allDone = currentRows.every((r) => r.is_completed)
-    if (!allDone) return
-
-    const currentRound = currentRows[0].round_number
-    const nextRows = freshSchedule.filter((r) => r.round_number === currentRound + 1)
-
-    if (nextRows.length === 0) {
-      endedRef.current = true
-      const { data: finalPlayers } = await supabase.from('players').select('*')
-
-      // Call onEnd FIRST so finalStandings is saved before Realtime fires
-      onEnd(finalPlayers ?? players)
-
-      if (settings?.id) {
-        await supabase
-          .from('tournament_settings')
-          .update({ is_active: false })
-          .eq('id', settings.id)
+      if (pErr || !inserted || cancelled) {
+        console.error(pErr)
+        return
       }
-      return
+
+      const pending = pickNextMatch(inserted, [])
+      let matchWithId = null
+
+      if (pending) {
+        matchWithId = await createPendingMatch(pending)
+      }
+
+      if (!cancelled) {
+        setPlayers(inserted)
+        setMatches([])
+        setCurrentMatch(matchWithId ?? pending)
+        setLoading(false)
+      }
     }
 
-    // Advance to next round
-    await supabase
-      .from('schedule')
-      .update({ is_current: false })
-      .eq('round_number', currentRound)
+    bootstrap()
+    return () => { cancelled = true }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-    await supabase
-      .from('schedule')
-      .update({ is_current: true })
-      .eq('round_number', currentRound + 1)
+  // ── Helper: insert a pending (not completed) match row ──────
+  const createPendingMatch = async (matchPick) => {
+    const { data, error } = await supabase
+      .from('matches')
+      .insert({
+        team1_p1: matchPick.team1[0].id,
+        team1_p2: matchPick.team1[1].id,
+        team2_p1: matchPick.team2[0].id,
+        team2_p2: matchPick.team2[1].id,
+        is_completed: false,
+      })
+      .select()
+      .single()
 
-    fetchData()
-  }, [fetchData, onEnd, players, settings])
-
-  const handleStop = async () => {
-    endedRef.current = true
-    const { data: finalPlayers } = await supabase.from('players').select('*')
-
-    // Call onEnd FIRST so finalStandings is saved before Realtime fires
-    onEnd(finalPlayers ?? players)
-
-    if (settings?.id) {
-      await supabase
-        .from('tournament_settings')
-        .update({ is_active: false })
-        .eq('id', settings.id)
+    if (error) {
+      console.error('Could not create pending match:', error)
+      return matchPick // fall back without a DB id
     }
+
+    return { ...matchPick, id: data.id }
   }
 
-  const handleEditSaved = () => {
-    setEditRow(null)
-    fetchData()
-  }
+  // ── Realtime subscription ───────────────────────────────────
+  useEffect(() => {
+    if (players.length === 0) return
+
+    const channel = supabase
+      .channel('matches-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'matches' },
+        () => refreshData()
+      )
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [players.length]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Refresh all data from DB ────────────────────────────────
+  const refreshData = useCallback(async () => {
+    const { players: latestPlayers } = stateRef.current
+    if (latestPlayers.length === 0) return
+
+    const playerIds = latestPlayers.map((p) => p.id)
+
+    const [{ data: updatedPlayers }, { data: updatedMatches }] = await Promise.all([
+      supabase.from('players').select('*').in('id', playerIds),
+      supabase
+        .from('matches')
+        .select('*')
+        .or(
+          playerIds.map((id) => `team1_p1.eq.${id}`).join(',') + ',' +
+          playerIds.map((id) => `team1_p2.eq.${id}`).join(',') + ',' +
+          playerIds.map((id) => `team2_p1.eq.${id}`).join(',') + ',' +
+          playerIds.map((id) => `team2_p2.eq.${id}`).join(',')
+        )
+        .order('created_at', { ascending: false }),
+    ])
+
+    const freshPlayers = updatedPlayers ?? latestPlayers
+    const freshMatches = updatedMatches ?? []
+
+    setPlayers(freshPlayers)
+    setMatches(freshMatches)
+
+    // Build next match from fresh data
+    const completedMatches = freshMatches.filter((m) => m.is_completed)
+    const pending = pickNextMatch(freshPlayers, completedMatches)
+
+    if (pending) {
+      const matchWithId = await createPendingMatch(pending)
+      setCurrentMatch(matchWithId)
+    } else {
+      setCurrentMatch(null)
+    }
+  }, []) // createPendingMatch is stable
+
+  const handleMatchSaved = () => refreshData()
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-gray-500 text-sm">Toernooi laden...</p>
+          <p className="text-gray-500 text-sm">Toernooi starten...</p>
         </div>
       </div>
     )
   }
 
-  const currentRows = schedule.filter((r) => r.is_current)
-  const currentRound = currentRows.length > 0 ? currentRows[0].round_number : null
-  const nextRoundNum = currentRound ? currentRound + 1 : null
-  const nextRows = nextRoundNum
-    ? schedule.filter((r) => r.round_number === nextRoundNum)
-    : []
-
-  const playingIds = new Set(
-    currentRows.flatMap((r) => [r.team1_p1, r.team1_p2, r.team2_p1, r.team2_p2])
-  )
-  const benchPlayers = players.filter((p) => !playingIds.has(p.id))
-
-  const nextPlayingIds = new Set(
-    nextRows.flatMap((r) => [r.team1_p1, r.team1_p2, r.team2_p1, r.team2_p2])
-  )
-  const nextBenchPlayers = players.filter((p) => !nextPlayingIds.has(p.id))
-
-  const name = (id) => players.find((p) => p.id === id)?.name ?? '?'
-  const pointsPerMatch = settings?.points_per_match ?? 12
-
   return (
     <div className="min-h-screen pb-64">
-      {/* Header */}
+      {/* Top bar */}
       <div className="sticky top-0 z-40 bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-2">
           <span className="text-xl">🎾</span>
-          <span className="font-bold text-gray-900">AMG Padeltoernooi</span>
-          {currentRound && (
-            <span className="text-xs text-gray-400 ml-1">
-              Ronde {currentRound}{settings?.rounds_total ? ` / ${settings.rounds_total}` : ''}
-            </span>
-          )}
+          <span className="font-bold text-gray-900">Padel toernooi AMG</span>
         </div>
         <button
-          onClick={() => setShowStopDialog(true)}
-          className="text-xs text-red-400 hover:text-red-600 transition-colors font-medium"
+          onClick={onReset}
+          className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
         >
-          Stop Toernooi
+          Nieuw toernooi
         </button>
       </div>
 
-      {/* Stop confirmation dialog */}
-      {showStopDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl">
-            <p className="font-semibold text-gray-900 mb-2">Toernooi stoppen?</p>
-            <p className="text-sm text-gray-500 mb-6">
-              Weet je zeker dat je het toernooi wilt stoppen?
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowStopDialog(false)}
-                className="btn-secondary flex-1"
-              >
-                Annuleren
-              </button>
-              <button
-                onClick={handleStop}
-                className="flex-1 bg-red-500 text-white font-semibold px-4 py-2 rounded-lg
-                           hover:bg-red-600 active:scale-95 transition-all duration-150"
-              >
-                Stoppen
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Edit match dialog */}
-      {editRow && (
-        <EditMatchDialog
-          row={editRow}
-          players={players}
-          pointsPerMatch={pointsPerMatch}
-          onSaved={handleEditSaved}
-          onClose={() => setEditRow(null)}
-        />
-      )}
-
       <div className="px-4 py-4 max-w-lg mx-auto space-y-4">
-
-        {/* Current round */}
-        {currentRows.length > 0 && (
-          <div>
-            <p className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
-              Huidige ronde — Ronde {currentRound}
-            </p>
-            {currentRows
-              .filter((r) => !r.is_completed)
-              .map((row) => (
-                <div key={row.id} className="mb-3">
-                  <ScoreInput
-                    scheduleRow={row}
-                    players={players}
-                    pointsPerMatch={pointsPerMatch}
-                    courtNumber={row.court_number}
-                    onSaved={handleScoreSaved}
-                  />
-                </div>
-              ))}
-
-            {/* Completed courts in current round */}
-            {currentRows.filter((r) => r.is_completed).map((row) => (
-              <div key={row.id} className="card mb-3 opacity-70">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-xs text-gray-400">Baan {row.court_number}:</span>
-                  <span className="text-gray-700 flex-1 text-center">
-                    {name(row.team1_p1)} & {name(row.team1_p2)}
-                    <span className="mx-2 font-mono font-bold text-primary">
-                      {row.score_team1}–{row.score_team2}
-                    </span>
-                    {name(row.team2_p1)} & {name(row.team2_p2)}
-                  </span>
-                  <div className="flex items-center gap-2 ml-2">
-                    <span className="text-green-500">✓</span>
-                    <button
-                      onClick={() => setEditRow(row)}
-                      className="text-xs text-gray-400 hover:text-primary transition-colors"
-                    >
-                      ✏️
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-
-            <BenchDisplay benchPlayers={benchPlayers} />
+        {currentMatch ? (
+          <>
+            <ScoreInput match={currentMatch} onSaved={handleMatchSaved} />
+            <BenchDisplay benchPlayers={currentMatch.bench} />
+          </>
+        ) : (
+          <div className="card text-center py-10">
+            <span className="text-4xl">🏆</span>
+            <p className="text-gray-700 font-semibold mt-3">Toernooi voltooid!</p>
+            <p className="text-gray-400 text-sm mt-1">Bekijk de eindstand hieronder.</p>
           </div>
         )}
 
-        {/* Next round */}
-        {nextRows.length > 0 && (
-          <div>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-              Volgende ronde — Ronde {nextRoundNum}
-            </p>
-            <div className="card space-y-2">
-              {nextRows.map((row) => (
-                <div key={row.id} className="text-sm text-gray-600">
-                  <span className="text-gray-400 text-xs">Baan {row.court_number}: </span>
-                  {name(row.team1_p1)} & {name(row.team1_p2)}
-                  <span className="text-gray-400 mx-1">vs</span>
-                  {name(row.team2_p1)} & {name(row.team2_p2)}
-                  {row.warning && (
-                    <span className="ml-1 text-xs text-amber-500">{row.warning}</span>
-                  )}
-                </div>
-              ))}
-              {nextBenchPlayers.length > 0 && (
-                <p className="text-xs text-gray-400 pt-1">
-                  Bank: {nextBenchPlayers.map((p) => p.name).join(', ')}
-                </p>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Full schedule */}
-        <ScheduleView
-          schedule={schedule}
-          players={players}
-          currentRound={currentRound}
-          onEdit={setEditRow}
-        />
+        <MatchHistory matches={matches} players={players} />
       </div>
 
       <RankingFooter players={players} />

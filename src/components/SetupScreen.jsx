@@ -66,7 +66,7 @@ export default function SetupScreen({ onStart }) {
   }
 
   const handleStartClick = () => {
-    if (players.length < 6 || starting) return
+    if (players.length < 4 || starting) return
     if (!isFair(totalMatches, players.length)) {
       setShowUnfairWarning(true)
     } else {
@@ -207,9 +207,9 @@ export default function SetupScreen({ onStart }) {
               </span>
             ))}
           </div>
-          {players.length < 6 && (
+          {players.length < 4 && (
             <p className="text-xs text-gray-400 mt-3">
-              Voeg nog {6 - players.length} speler(s) toe om te starten.
+              Voeg nog {4 - players.length} speler(s) toe om te starten.
             </p>
           )}
         </div>
@@ -284,7 +284,7 @@ export default function SetupScreen({ onStart }) {
           </div>
 
           {/* Live preview */}
-          {players.length >= 6 && (
+          {players.length >= 4 && (
             <div className="mt-4 p-3 bg-gray-50 rounded-xl text-sm text-gray-600 leading-relaxed">
               Met <strong>{players.length}</strong> spelers,{' '}
               <strong>{numCourts}</strong> {numCourts === 1 ? 'baan' : 'banen'} en{' '}
@@ -299,7 +299,7 @@ export default function SetupScreen({ onStart }) {
 
       <button
         onClick={handleStartClick}
-        disabled={players.length < 6 || starting}
+        disabled={players.length < 4 || starting}
         className="btn-primary w-full max-w-md py-3 text-base"
       >
         {starting ? 'Bezig met starten...' : 'Start Toernooi'}
