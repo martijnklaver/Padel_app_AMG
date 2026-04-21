@@ -6,6 +6,7 @@ import ActiveSessionScreen from './components/session/ActiveSessionScreen'
 import EndSessionScreen from './components/session/EndSessionScreen'
 import InsightsScreen from './components/insights/InsightsScreen'
 import SettingsScreen from './components/settings/SettingsScreen'
+import EditSessionScreen from './components/session/EditSessionScreen'
 
 export default function App() {
   const [players, setPlayers] = useState([])
@@ -111,12 +112,10 @@ export default function App() {
     if (activeTab === 'active') {
       if (editedSession) {
         return (
-          <ActiveSessionScreen
+          <EditSessionScreen
             session={editedSession}
             players={players}
-            onSessionEnd={handleSessionEnd}
-            editMode
-            onDoneEditing={handleDoneEditing}
+            onDone={handleDoneEditing}
           />
         )
       }
