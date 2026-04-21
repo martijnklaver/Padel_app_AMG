@@ -21,7 +21,9 @@ export default function PointsScoreInput({ scheduleRow, session, players, onSave
     setSaving(true)
     setError(null)
 
-    const winner = n1 > n2 ? 1 : n2 > n1 ? 2 : 1
+    const winner = n1 > n2 ? 1 : n2 > n1 ? 2 : null
+    const norm1 = winner === 1 ? 1.0 : winner === 2 ? 0.0 : 0.5
+    const norm2 = winner === 2 ? 1.0 : winner === 1 ? 0.0 : 0.5
 
     try {
       const { error: mErr } = await supabase.from('matches').insert({
@@ -34,8 +36,8 @@ export default function PointsScoreInput({ scheduleRow, session, players, onSave
         score_team1: n1,
         score_team2: n2,
         winner,
-        normalized_score_team1: winner === 1 ? 1.0 : 0.0,
-        normalized_score_team2: winner === 2 ? 1.0 : 0.0,
+        normalized_score_team1: norm1,
+        normalized_score_team2: norm2,
         is_completed: true,
       })
       if (mErr) throw mErr

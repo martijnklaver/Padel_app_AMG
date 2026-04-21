@@ -24,7 +24,7 @@ export default function EditMatchDialog({ match, session, players, onSaved, onCl
 
     if (isPoints) {
       if (s1 === '' || s2 === '') { setSaving(false); return }
-      winner = n1 > n2 ? 1 : n2 > n1 ? 2 : 1
+      winner = n1 > n2 ? 1 : n2 > n1 ? 2 : null
       score1 = n1; score2 = n2
     } else {
       if (!selected) { setSaving(false); return }
@@ -33,8 +33,8 @@ export default function EditMatchDialog({ match, session, players, onSaved, onCl
       score2 = winner === 2 ? 1 : 0
     }
 
-    norm1 = winner === 1 ? 1.0 : 0.0
-    norm2 = winner === 2 ? 1.0 : 0.0
+    norm1 = winner === 1 ? 1.0 : winner === 2 ? 0.0 : 0.5
+    norm2 = winner === 2 ? 1.0 : winner === 1 ? 0.0 : 0.5
 
     try {
       const { error: mErr } = await supabase

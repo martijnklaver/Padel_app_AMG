@@ -20,7 +20,9 @@ function ScoreRow({ row, session, players, onSaved }) {
 
     const n1 = isPoints ? (parseInt(s1) || 0) : (winner === 1 ? 1 : 0)
     const n2 = isPoints ? (parseInt(s2) || 0) : (winner === 2 ? 1 : 0)
-    const w = isPoints ? (n1 > n2 ? 1 : n2 > n1 ? 2 : 1) : winner
+    const w = isPoints ? (n1 > n2 ? 1 : n2 > n1 ? 2 : null) : winner
+    const norm1 = w === 1 ? 1.0 : w === 2 ? 0.0 : 0.5
+    const norm2 = w === 2 ? 1.0 : w === 1 ? 0.0 : 0.5
 
     const { error: mErr } = await supabase.from('matches').insert({
       session_id: session.id,
@@ -29,8 +31,8 @@ function ScoreRow({ row, session, players, onSaved }) {
       team2_p1: row.team2_p1, team2_p2: row.team2_p2,
       score_team1: n1, score_team2: n2,
       winner: w,
-      normalized_score_team1: w === 1 ? 1.0 : 0.0,
-      normalized_score_team2: w === 2 ? 1.0 : 0.0,
+      normalized_score_team1: norm1,
+      normalized_score_team2: norm2,
       is_completed: true,
     })
 
