@@ -26,7 +26,7 @@ export default function SessionListItem({ session, players, onClick, onDelete, o
         <span className={`text-xs font-semibold px-2 py-1 rounded-full ${badge.cls}`}>
           {badge.label}
         </span>
-        {session.is_completed && onEdit && (
+        {!session.is_active && onEdit && (
           <button
             onClick={(e) => { e.stopPropagation(); onEdit(session) }}
             className="p-1.5 text-gray-400 hover:text-primary transition-colors"
