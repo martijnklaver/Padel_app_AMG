@@ -1,5 +1,7 @@
 import { computeRankingFromMatches } from '../../utils/tournament'
 
+const MEDALS = ['🥇', '🥈', '🥉']
+
 export default function OverallStatsCard({ players, matches }) {
   const ranking = computeRankingFromMatches(players, matches).filter((p) => p.played > 0)
 
@@ -18,6 +20,7 @@ export default function OverallStatsCard({ players, matches }) {
       <table className="w-full text-sm">
         <thead>
           <tr className="text-gray-400 text-xs border-b border-gray-100">
+            <th className="text-left pb-2 font-medium">#</th>
             <th className="text-left pb-2 font-medium">Naam</th>
             <th className="text-right pb-2 font-medium">Gesp.</th>
             <th className="text-right pb-2 font-medium">Gew.</th>
@@ -30,6 +33,7 @@ export default function OverallStatsCard({ players, matches }) {
             const losses = p.played - Math.round(p.wins)
             return (
               <tr key={p.id} className={i === 0 ? 'font-bold text-primary' : 'text-gray-700'}>
+                <td className="py-2">{MEDALS[i] ?? i + 1}</td>
                 <td className="py-2">{p.name}</td>
                 <td className="text-right py-2">{p.played}</td>
                 <td className="text-right py-2">{Math.round(p.wins)}</td>

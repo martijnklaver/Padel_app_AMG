@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../supabaseClient'
 import OverallStatsCard from './OverallStatsCard'
 import PerformanceChart from './PerformanceChart'
-import BestPlayerCard from './BestPlayerCard'
 import BestDuoCard from './BestDuoCard'
 import FairestMatchupCard from './FairestMatchupCard'
 import SessionReplayCard from './SessionReplayCard'
@@ -69,7 +68,6 @@ export default function InsightsScreen({ players }) {
         <div className="space-y-4">
           <OverallStatsCard players={players} matches={filteredMatches} />
           <PerformanceChart players={players} sessions={filteredSessions} matches={filteredMatches} />
-          <BestPlayerCard players={players} matches={filteredMatches} />
           <BestDuoCard players={players} matches={filteredMatches} />
           <FairestMatchupCard players={players} matches={filteredMatches} />
           <SessionReplayCard sessions={filteredSessions} players={players} />

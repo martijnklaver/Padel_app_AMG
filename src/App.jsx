@@ -5,14 +5,15 @@ import HomeScreen from './components/home/HomeScreen'
 import ActiveSessionScreen from './components/session/ActiveSessionScreen'
 import EndSessionScreen from './components/session/EndSessionScreen'
 import InsightsScreen from './components/insights/InsightsScreen'
+import SettingsScreen from './components/settings/SettingsScreen'
 
 export default function App() {
   const [players, setPlayers] = useState([])
   const [activeSession, setActiveSession] = useState(null)
   const [activeTab, setActiveTab] = useState('home')
   const [loading, setLoading] = useState(true)
-  // Preserved so realtime can't wipe it after session ends
   const [endedSession, setEndedSession] = useState(null)
+  const [editedSession, setEditedSession] = useState(null)
 
   const loadInitialData = useCallback(async () => {
     const [{ data: playersData }, { data: activeData }] = await Promise.all([
@@ -29,7 +30,6 @@ export default function App() {
     loadInitialData()
   }, [loadInitialData])
 
-  // Realtime: sync active session state across devices
   useEffect(() => {
     const unsub = subscribeToSessions(async () => {
       const { data } = await supabase
@@ -47,13 +47,14 @@ export default function App() {
   const handleSessionCreated = (session) => {
     setActiveSession(session)
     setEndedSession(null)
+    setEditedSession(null)
     setActiveTab('active')
   }
 
   const handleSessionEnd = (session) => {
     setEndedSession(session)
     setActiveSession(null)
-    setActiveTab('active') // Shows EndSessionScreen
+    setActiveTab('active')
   }
 
   const handleBackToHome = () => {
@@ -61,12 +62,26 @@ export default function App() {
     setActiveTab('home')
   }
 
+  const handleEditSession = (session) => {
+    setEditedSession(session)
+    setEndedSession(null)
+    setActiveTab('active')
+  }
+
+  const handleDoneEditing = () => {
+    setEditedSession(null)
+    setActiveTab('home')
+  }
+
   if (loading) return <LoadingSpinner />
+
+  const hasActiveContent = !!(activeSession || endedSession || editedSession)
 
   const tabs = [
     { id: 'home', icon: '🏠', label: 'Home' },
-    { id: 'active', icon: '🎾', label: 'Actief', disabled: !activeSession && !endedSession },
+    { id: 'active', icon: '🎾', label: 'Actief', disabled: !hasActiveContent },
     { id: 'insights', icon: '📊', label: 'Inzichten' },
+    { id: 'settings', icon: '⚙️', label: 'Instellingen' },
   ]
 
   const renderContent = () => {
@@ -75,14 +90,17 @@ export default function App() {
         <HomeScreen
           players={players}
           onSessionCreated={handleSessionCreated}
+          onEditSession={handleEditSession}
           onSelectSession={(session) => {
             if (session.is_active) {
               setActiveSession(session)
               setEndedSession(null)
+              setEditedSession(null)
               setActiveTab('active')
             } else {
               setEndedSession(session)
               setActiveSession(null)
+              setEditedSession(null)
               setActiveTab('active')
             }
           }}
@@ -91,6 +109,17 @@ export default function App() {
     }
 
     if (activeTab === 'active') {
+      if (editedSession) {
+        return (
+          <ActiveSessionScreen
+            session={editedSession}
+            players={players}
+            onSessionEnd={handleSessionEnd}
+            editMode
+            onDoneEditing={handleDoneEditing}
+          />
+        )
+      }
       if (endedSession && !activeSession) {
         return (
           <EndSessionScreen
@@ -123,18 +152,19 @@ export default function App() {
     if (activeTab === 'insights') {
       return <InsightsScreen players={players} />
     }
+
+    if (activeTab === 'settings') {
+      return <SettingsScreen players={players} onPlayersUpdated={setPlayers} />
+    }
   }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Content: ruimte voor bottom nav op mobiel, top nav op desktop */}
       <div className="flex-1 pb-16 md:pb-0 md:pt-16 overflow-auto">
         {renderContent()}
       </div>
 
-      {/* Mobiel: bottom nav | Desktop: top nav */}
       <nav className="fixed bottom-0 left-0 right-0 md:bottom-auto md:top-0 bg-white border-t md:border-t-0 md:border-b border-gray-200 z-50 flex md:px-6">
-        {/* Desktop: app naam links */}
         <div className="hidden md:flex items-center px-4 mr-4 font-bold text-gray-900 text-base shrink-0">
           🎾 Haarlemboys
         </div>

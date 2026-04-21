@@ -2,11 +2,14 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../supabaseClient'
 import SessionListItem from './SessionListItem'
 import NewSessionModal from './NewSessionModal'
+import ConfirmDialog from '../shared/ConfirmDialog'
 
-export default function HomeScreen({ players, onSessionCreated, onSelectSession }) {
+export default function HomeScreen({ players, onSessionCreated, onSelectSession, onEditSession }) {
   const [sessions, setSessions] = useState([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleting, setDeleting] = useState(false)
 
   const fetchSessions = useCallback(async () => {
     const { data } = await supabase
@@ -27,6 +30,22 @@ export default function HomeScreen({ players, onSessionCreated, onSelectSession 
     fetchSessions()
     onSessionCreated(session)
   }
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    await supabase.from('matches').delete().eq('session_id', deleteTarget.id)
+    await supabase.from('schedule').delete().eq('session_id', deleteTarget.id)
+    await supabase.from('sessions').delete().eq('id', deleteTarget.id)
+    setDeleteTarget(null)
+    setDeleting(false)
+    fetchSessions()
+  }
+
+  const dateStr = (s) =>
+    new Date(s.date + 'T12:00:00').toLocaleDateString('nl-NL', {
+      day: 'numeric', month: 'long', year: 'numeric',
+    })
 
   return (
     <div className="max-w-lg mx-auto p-4">
@@ -59,6 +78,8 @@ export default function HomeScreen({ players, onSessionCreated, onSelectSession 
               session={s}
               players={players}
               onClick={() => onSelectSession(s)}
+              onDelete={(session) => setDeleteTarget(session)}
+              onEdit={onEditSession}
             />
           ))}
         </div>
@@ -69,6 +90,16 @@ export default function HomeScreen({ players, onSessionCreated, onSelectSession 
           players={players}
           onCreated={handleCreated}
           onClose={() => setShowModal(false)}
+        />
+      )}
+
+      {deleteTarget && (
+        <ConfirmDialog
+          title="Sessie verwijderen?"
+          message={`Weet je zeker dat je de sessie van ${dateStr(deleteTarget)} wilt verwijderen? Dit verwijdert ook alle wedstrijden en scores van die sessie.`}
+          confirmLabel={deleting ? 'Verwijderen...' : 'Verwijderen'}
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setDeleteTarget(null)}
         />
       )}
     </div>

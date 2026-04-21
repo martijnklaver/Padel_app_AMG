@@ -103,7 +103,7 @@ function ScoreRow({ row, session, players, onSaved }) {
   )
 }
 
-export default function ScheduleAccordion({ schedule, matches, players, session, onScoreSaved }) {
+export default function ScheduleAccordion({ schedule, matches, players, session, onScoreSaved, onEdit }) {
   const [open, setOpen] = useState(false)
 
   const playerName = (id) => players.find((p) => p.id === id)?.name ?? '?'
@@ -174,7 +174,17 @@ export default function ScheduleAccordion({ schedule, matches, players, session,
                               {playerName(row.team2_p1)} & {playerName(row.team2_p2)}
                             </span>
                           </span>
-                          <span className="font-semibold text-gray-600 ml-2 shrink-0">{scoreStr(match)}</span>
+                          <div className="flex items-center gap-1 shrink-0 ml-2">
+                            <span className="font-semibold text-gray-600">{scoreStr(match)}</span>
+                            {onEdit && (
+                              <button
+                                onClick={() => onEdit(match, row)}
+                                className="text-gray-400 hover:text-primary ml-1"
+                              >
+                                ✏️
+                              </button>
+                            )}
+                          </div>
                         </div>
                       ) : (
                         <ScoreRow

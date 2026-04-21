@@ -6,7 +6,7 @@ import ScheduleAccordion from './ScheduleAccordion'
 import EditMatchDialog from './EditMatchDialog'
 import ConfirmDialog from '../shared/ConfirmDialog'
 
-export default function ActiveSessionScreen({ session, players, onSessionEnd }) {
+export default function ActiveSessionScreen({ session, players, onSessionEnd, editMode, onDoneEditing }) {
   const [schedule, setSchedule] = useState([])
   const [matches, setMatches] = useState([])
   const [editData, setEditData] = useState(null) // { match, row }
@@ -155,19 +155,29 @@ export default function ActiveSessionScreen({ session, players, onSessionEnd }) 
         players={players}
         session={session}
         onScoreSaved={handleScoreSaved}
+        onEdit={editMode ? (match, row) => setEditData({ match, row }) : undefined}
       />
 
       {/* Live ranking — altijd zichtbaar, herlaadt via matches state */}
       <LiveRanking session={session} players={players} matches={matches} />
 
-      {/* Stop knop */}
+      {/* Stop / Klaar-knop */}
       <div className="mt-4">
-        <button
-          onClick={() => setShowStop(true)}
-          className="w-full py-2 text-sm text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50"
-        >
-          Stop sessie
-        </button>
+        {editMode ? (
+          <button
+            onClick={onDoneEditing}
+            className="w-full py-2 text-sm text-white bg-primary rounded-lg hover:bg-primary-hover"
+          >
+            Klaar met bewerken
+          </button>
+        ) : (
+          <button
+            onClick={() => setShowStop(true)}
+            className="w-full py-2 text-sm text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50"
+          >
+            Stop sessie
+          </button>
+        )}
       </div>
 
       {/* Dialogen */}
