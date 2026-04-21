@@ -85,16 +85,22 @@ export default function NewSessionModal({ players, onCreated, onClose }) {
   const showMatchCount = selectedIds.length >= 4 && selectedIds.length <= 5
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
-      <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[92vh] overflow-y-auto">
-        <div className="p-4">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-gray-900">Nieuwe sessie</h2>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
-          </div>
+    // Overlay: full-screen on mobile, centered modal on sm+
+    <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50">
+      {/* Modal: full-height on mobile, constrained on sm+ */}
+      <div className="bg-white w-full h-full sm:h-auto sm:rounded-2xl sm:max-w-md sm:max-h-[90vh] flex flex-col">
+
+        {/* Header — fixed at top */}
+        <div className="flex items-center justify-between px-4 py-4 border-b border-gray-100 shrink-0">
+          <h2 className="text-lg font-bold text-gray-900">Nieuwe sessie</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+        </div>
+
+        {/* Scrollable form body */}
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
 
           {/* Datum */}
-          <div className="mb-3">
+          <div>
             <label className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">Datum</label>
             <input
               type="date"
@@ -104,8 +110,8 @@ export default function NewSessionModal({ players, onCreated, onClose }) {
             />
           </div>
 
-          {/* Spelers — grid 3 per rij */}
-          <div className="mb-3">
+          {/* Spelers */}
+          <div>
             <label className="block text-xs font-medium text-gray-500 mb-2 uppercase tracking-wide">
               Spelers ({selectedIds.length}/5 geselecteerd — kies 4 of 5)
             </label>
@@ -117,7 +123,7 @@ export default function NewSessionModal({ players, onCreated, onClose }) {
                     key={p.id}
                     type="button"
                     onClick={() => togglePlayer(p.id)}
-                    className={`py-2 px-3 rounded-lg border text-sm font-medium transition-colors ${
+                    className={`py-2.5 px-3 rounded-lg border text-sm font-medium transition-colors ${
                       checked
                         ? 'bg-primary text-white border-primary'
                         : 'bg-white text-gray-700 border-gray-200 hover:border-primary/40'
@@ -134,7 +140,7 @@ export default function NewSessionModal({ players, onCreated, onClose }) {
           </div>
 
           {/* Score mode */}
-          <div className="mb-3">
+          <div>
             <label className="block text-xs font-medium text-gray-500 mb-2 uppercase tracking-wide">Score mode</label>
             <div className="flex gap-2">
               {['points', 'games'].map((mode) => (
@@ -142,7 +148,7 @@ export default function NewSessionModal({ players, onCreated, onClose }) {
                   key={mode}
                   type="button"
                   onClick={() => setScoreMode(mode)}
-                  className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                  className={`flex-1 py-2.5 rounded-lg border text-sm font-medium transition-colors ${
                     scoreMode === mode
                       ? 'bg-primary text-white border-primary'
                       : 'bg-white text-gray-700 border-gray-200 hover:border-primary/40'
@@ -154,9 +160,9 @@ export default function NewSessionModal({ players, onCreated, onClose }) {
             </div>
           </div>
 
-          {/* Punten per wedstrijd + Aantal wedstrijden — naast elkaar */}
+          {/* Punten per wedstrijd + Aantal wedstrijden */}
           {showMatchCount && (
-            <div className="flex gap-3 mb-4">
+            <div className="flex gap-3">
               {scoreMode === 'points' && (
                 <div className="flex-1">
                   <label className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">Punten/wedstrijd</label>
@@ -177,7 +183,7 @@ export default function NewSessionModal({ players, onCreated, onClose }) {
                   <button
                     type="button"
                     onClick={() => setTotalMatches((v) => Math.max(1, v - 1))}
-                    className="w-8 h-9 rounded-lg border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-50 shrink-0"
+                    className="w-9 h-9 rounded-lg border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-50 shrink-0"
                   >
                     −
                   </button>
@@ -195,7 +201,7 @@ export default function NewSessionModal({ players, onCreated, onClose }) {
                   <button
                     type="button"
                     onClick={() => setTotalMatches((v) => Math.min(maxMatches, v + 1))}
-                    className="w-8 h-9 rounded-lg border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-50 shrink-0"
+                    className="w-9 h-9 rounded-lg border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-50 shrink-0"
                   >
                     +
                   </button>
@@ -203,9 +209,11 @@ export default function NewSessionModal({ players, onCreated, onClose }) {
               </div>
             </div>
           )}
+        </div>
 
+        {/* Sticky footer — Start sessie button always visible */}
+        <div className="shrink-0 px-4 py-4 bg-white border-t border-gray-100">
           {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
-
           <button
             onClick={handleSubmit}
             disabled={!canSubmit}
