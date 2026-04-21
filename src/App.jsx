@@ -160,7 +160,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <div className="flex-1 pb-16 md:pb-0 md:pt-16 overflow-auto">
+      <div className="flex-1 pb-20 md:pb-0 md:pt-16 overflow-auto">
         {renderContent()}
       </div>
 

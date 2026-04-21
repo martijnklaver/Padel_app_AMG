@@ -85,8 +85,8 @@ export default function NewSessionModal({ players, onCreated, onClose }) {
   const showMatchCount = selectedIds.length >= 4 && selectedIds.length <= 5
 
   return (
-    // Overlay: full-screen on mobile, centered modal on sm+
-    <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50">
+    // Overlay: pb-16 on mobile so modal stops above the bottom nav
+    <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 pb-16 sm:pb-0">
       {/* Modal: full-height on mobile, constrained on sm+ */}
       <div className="bg-white w-full h-full sm:h-auto sm:rounded-2xl sm:max-w-md sm:max-h-[90vh] flex flex-col">
 
