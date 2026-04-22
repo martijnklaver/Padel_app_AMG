@@ -52,7 +52,7 @@ export default function GamesScoreInput({ scheduleRow, session, players, onSaved
       <div className="flex items-center gap-2 mb-4">
         <button
           onClick={() => setSelected(1)}
-          className={`flex-1 text-right font-semibold text-lg leading-tight rounded-xl py-3 px-2 transition-all ${
+          className={`flex-1 text-center font-semibold text-lg leading-tight rounded-xl py-3 px-2 transition-all ${
             selected === 1 ? 'text-primary bg-primary/10' : 'text-gray-800 hover:bg-gray-50'
           }`}
         >
@@ -64,7 +64,7 @@ export default function GamesScoreInput({ scheduleRow, session, players, onSaved
 
         <button
           onClick={() => setSelected(2)}
-          className={`flex-1 text-left font-semibold text-lg leading-tight rounded-xl py-3 px-2 transition-all ${
+          className={`flex-1 text-center font-semibold text-lg leading-tight rounded-xl py-3 px-2 transition-all ${
             selected === 2 ? 'text-primary bg-primary/10' : 'text-gray-800 hover:bg-gray-50'
           }`}
         >

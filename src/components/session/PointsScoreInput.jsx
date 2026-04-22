@@ -58,7 +58,7 @@ export default function PointsScoreInput({ scheduleRow, session, players, onSave
   return (
     <div>
       <div className="flex items-center gap-2">
-        <span className="flex-1 text-right font-semibold text-lg leading-tight text-gray-800">
+        <span className="flex-1 text-center font-semibold text-lg leading-tight text-gray-800">
           {team1}
         </span>
         <div className="flex items-center gap-1 shrink-0">
@@ -80,7 +80,7 @@ export default function PointsScoreInput({ scheduleRow, session, players, onSave
             className="score-input"
           />
         </div>
-        <span className="flex-1 font-semibold text-lg leading-tight text-gray-800">
+        <span className="flex-1 text-center font-semibold text-lg leading-tight text-gray-800">
           {team2}
         </span>
       </div>

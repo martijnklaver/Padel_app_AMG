@@ -120,7 +120,6 @@ export default function ActiveSessionScreen({ session, players, onSessionEnd, ed
       {/* Header */}
       <div className="mb-4">
         <p className="text-xs text-gray-400">{dateStr}</p>
-        <p className="text-sm text-gray-600">{sessionPlayers.map((p) => p.name).join(', ')}</p>
       </div>
 
       {/* Huidige ronde */}

@@ -35,7 +35,7 @@ export default function RoundCard({
   }
 
   return (
-    <div className={`card ${muted ? 'opacity-60' : ''}`}>
+    <div className={`card ${muted ? 'opacity-60' : 'bg-orange-50 border-orange-200'}`}>
       <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{title}</p>
 
       {scheduleRows.map((row) => {
@@ -45,17 +45,11 @@ export default function RoundCard({
         return (
           <div key={row.id}>
             {done ? (
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-gray-700">
-                  <span className={match.winner === 1 ? 'font-semibold' : ''}>
-                    {playerName(row.team1_p1)} & {playerName(row.team1_p2)}
-                  </span>
-                  <span className="text-gray-400 mx-2">vs</span>
-                  <span className={match.winner === 2 ? 'font-semibold' : ''}>
-                    {playerName(row.team2_p1)} & {playerName(row.team2_p2)}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-2">
+                <span className={`flex-1 text-center text-sm ${match.winner === 1 ? 'font-semibold text-gray-900' : 'text-gray-500'}`}>
+                  {playerName(row.team1_p1)} & {playerName(row.team1_p2)}
+                </span>
+                <div className="flex items-center gap-1 shrink-0">
                   <span className="font-bold text-gray-800 text-sm">{scoreLabel(match)}</span>
                   {onEdit && (
                     <button
@@ -66,6 +60,9 @@ export default function RoundCard({
                     </button>
                   )}
                 </div>
+                <span className={`flex-1 text-center text-sm ${match.winner === 2 ? 'font-semibold text-gray-900' : 'text-gray-500'}`}>
+                  {playerName(row.team2_p1)} & {playerName(row.team2_p2)}
+                </span>
               </div>
             ) : !muted ? (
               session.score_mode === 'points' ? (
@@ -84,10 +81,14 @@ export default function RoundCard({
                 />
               )
             ) : (
-              <div className="text-sm text-gray-500">
-                {playerName(row.team1_p1)} & {playerName(row.team1_p2)}
-                <span className="text-gray-300 mx-2">vs</span>
-                {playerName(row.team2_p1)} & {playerName(row.team2_p2)}
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <span className="flex-1 text-center">
+                  {playerName(row.team1_p1)} & {playerName(row.team1_p2)}
+                </span>
+                <span className="text-gray-300 shrink-0">vs</span>
+                <span className="flex-1 text-center">
+                  {playerName(row.team2_p1)} & {playerName(row.team2_p2)}
+                </span>
               </div>
             )}
           </div>

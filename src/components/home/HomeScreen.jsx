@@ -71,17 +71,36 @@ export default function HomeScreen({ players, onSessionCreated, onSelectSession,
           <p className="text-sm mt-1">Start je eerste sessie!</p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {sessions.map((s) => (
-            <SessionListItem
-              key={s.id}
-              session={s}
-              players={players}
-              onClick={() => onSelectSession(s)}
-              onDelete={(session) => setDeleteTarget(session)}
-              onEdit={onEditSession}
-            />
-          ))}
+        <div className="space-y-5">
+          {(() => {
+            const byYear = sessions.reduce((acc, s) => {
+              const year = new Date(s.date + 'T12:00:00').getFullYear()
+              if (!acc[year]) acc[year] = []
+              acc[year].push(s)
+              return acc
+            }, {})
+            return Object.keys(byYear)
+              .sort((a, b) => b - a)
+              .map((year) => (
+                <div key={year}>
+                  <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 px-1">
+                    {year}
+                  </h2>
+                  <div className="space-y-3">
+                    {byYear[year].map((s) => (
+                      <SessionListItem
+                        key={s.id}
+                        session={s}
+                        players={players}
+                        onClick={() => onSelectSession(s)}
+                        onDelete={(session) => setDeleteTarget(session)}
+                        onEdit={onEditSession}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))
+          })()}
         </div>
       )}
 
