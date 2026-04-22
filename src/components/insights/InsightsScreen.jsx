@@ -13,7 +13,7 @@ const LIMIT_OPTIONS = [
   { label: 'Laatste 10', value: 10 },
 ]
 
-export default function InsightsScreen({ players }) {
+export default function InsightsScreen({ players, onBack }) {
   const [matches, setMatches] = useState([])
   const [sessions, setSessions] = useState([])
   const [loading, setLoading] = useState(true)
@@ -40,7 +40,18 @@ export default function InsightsScreen({ players }) {
 
   return (
     <div className="max-w-lg mx-auto p-4">
-      <h2 className="text-xl font-bold text-gray-900 mb-4 pt-2">Inzichten</h2>
+      <div className="flex items-center gap-3 mb-4 pt-2">
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="text-gray-400 hover:text-gray-700 transition-colors text-lg leading-none"
+            title="Terug naar home"
+          >
+            ←
+          </button>
+        )}
+        <h2 className="text-xl font-bold text-gray-900">Inzichten</h2>
+      </div>
 
       {/* Session filter */}
       <div className="mb-5">

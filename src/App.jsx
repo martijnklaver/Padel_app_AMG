@@ -15,6 +15,8 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const [endedSession, setEndedSession] = useState(null)
   const [editedSession, setEditedSession] = useState(null)
+  const [showSplash, setShowSplash] = useState(false)
+  const [pendingEndSession, setPendingEndSession] = useState(null)
 
   const loadInitialData = useCallback(async () => {
     const [{ data: playersData }, { data: activeData }] = await Promise.all([
@@ -45,6 +47,16 @@ export default function App() {
     return unsub
   }, [])
 
+  useEffect(() => {
+    if (!showSplash) return
+    const timer = setTimeout(() => {
+      setShowSplash(false)
+      setEndedSession(pendingEndSession)
+      setPendingEndSession(null)
+    }, 3000)
+    return () => clearTimeout(timer)
+  }, [showSplash, pendingEndSession])
+
   const handleSessionCreated = (session) => {
     setActiveSession(session)
     setEndedSession(null)
@@ -53,8 +65,9 @@ export default function App() {
   }
 
   const handleSessionEnd = (session) => {
-    setEndedSession(session)
+    setPendingEndSession(session)
     setActiveSession(null)
+    setShowSplash(true)
     setActiveTab('active')
   }
 
@@ -135,6 +148,7 @@ export default function App() {
             session={activeSession}
             players={players}
             onSessionEnd={handleSessionEnd}
+            onBack={() => setActiveTab('home')}
           />
         )
       }
@@ -150,7 +164,7 @@ export default function App() {
     }
 
     if (activeTab === 'insights') {
-      return <InsightsScreen players={players} />
+      return <InsightsScreen players={players} onBack={() => setActiveTab('home')} />
     }
 
     if (activeTab === 'settings') {
@@ -160,13 +174,25 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* Leipe Marty splash — toont 3 sec na afloop sessie */}
+      {showSplash && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center"
+          style={{ backgroundColor: '#EF7D2D' }}
+        >
+          <p className="text-white font-bold text-center px-8 leading-snug text-4xl">
+            Deze app wordt u aangeboden<br />door leipe marty
+          </p>
+        </div>
+      )}
+
       <div className="flex-1 pb-20 md:pb-0 md:pt-16 overflow-auto">
         {renderContent()}
       </div>
 
       <nav className="fixed bottom-0 left-0 right-0 md:bottom-auto md:top-0 bg-white border-t md:border-t-0 md:border-b border-gray-200 z-50 flex md:px-6">
         <div className="hidden md:flex items-center px-4 mr-4 font-bold text-gray-900 text-base shrink-0">
-          🎾 Haarlemboys
+          🎾 Padelapp voor de boys
         </div>
         {tabs.map((tab) => (
           <button

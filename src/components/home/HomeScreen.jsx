@@ -51,8 +51,7 @@ export default function HomeScreen({ players, onSessionCreated, onSelectSession,
     <div className="max-w-lg mx-auto p-4">
       <div className="flex items-center justify-between mb-6 pt-2">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Haarlemboys</h1>
-          <p className="text-primary font-semibold text-sm">Padelapp</p>
+          <h1 className="text-2xl font-bold text-gray-900">Padelapp voor de boys</h1>
         </div>
         <button
           onClick={() => setShowModal(true)}

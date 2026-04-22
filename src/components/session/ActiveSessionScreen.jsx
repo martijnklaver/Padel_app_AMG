@@ -50,7 +50,7 @@ function NicknameDialog({ session, players, nicknames, onSave, onClose }) {
   )
 }
 
-export default function ActiveSessionScreen({ session, players, onSessionEnd, editMode, onDoneEditing }) {
+export default function ActiveSessionScreen({ session, players, onSessionEnd, onBack, editMode, onDoneEditing }) {
   const [schedule, setSchedule] = useState([])
   const [matches, setMatches] = useState([])
   const [editData, setEditData] = useState(null)
@@ -162,7 +162,18 @@ export default function ActiveSessionScreen({ session, players, onSessionEnd, ed
     <div className="max-w-lg mx-auto p-4 pb-20">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <p className="text-xs text-gray-400">{dateStr}</p>
+        <div className="flex items-center gap-3">
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="text-gray-400 hover:text-gray-700 transition-colors text-lg leading-none"
+              title="Terug naar home"
+            >
+              ←
+            </button>
+          )}
+          <p className="text-xs text-gray-400">{dateStr}</p>
+        </div>
         <button
           onClick={() => setShowNicknameDialog(true)}
           className="text-xs text-gray-400 hover:text-primary transition-colors"
