@@ -46,31 +46,11 @@ export default function EndSessionScreen({ session, players, onBack, onEdit }) {
   return (
     <div className="max-w-lg mx-auto p-4 pb-8">
       {/* Header */}
-      <div className="flex items-start gap-3 pt-4 mb-6">
-        <div className="flex-1 text-center">
-          <div className="text-4xl mb-2">🎾</div>
-          <h2 className="text-xl font-bold text-gray-900">Sessie afgerond!</h2>
-          <p className="text-sm text-gray-500 mt-1">{dateStr}</p>
-          <p className="text-xs text-gray-400 mt-0.5">{sessionPlayers.map((p) => p.name).join(', ')}</p>
-        </div>
-        <div className="flex flex-col gap-1 shrink-0">
-          {onEdit && (
-            <button
-              onClick={() => onEdit(session)}
-              className="p-2 text-gray-400 hover:text-primary transition-colors rounded-lg hover:bg-gray-100"
-              title="Sessie bewerken"
-            >
-              ✏️
-            </button>
-          )}
-          <button
-            onClick={() => setDeleteConfirm(true)}
-            className="p-2 text-gray-400 hover:text-red-500 transition-colors rounded-lg hover:bg-gray-100"
-            title="Sessie verwijderen"
-          >
-            🗑️
-          </button>
-        </div>
+      <div className="text-center pt-4 mb-6">
+        <div className="text-4xl mb-2">🎾</div>
+        <h2 className="text-xl font-bold text-gray-900">Sessie afgerond!</h2>
+        <p className="text-sm text-gray-500 mt-1">{dateStr}</p>
+        <p className="text-xs text-gray-400 mt-0.5">{sessionPlayers.map((p) => p.name).join(', ')}</p>
       </div>
 
       {loading ? (
@@ -159,7 +139,24 @@ export default function EndSessionScreen({ session, players, onBack, onEdit }) {
         </div>
       )}
 
-      <button onClick={onBack} className="btn-secondary w-full mt-4">
+      <div className="flex gap-3 mt-4">
+        {onEdit && (
+          <button
+            onClick={() => onEdit(session)}
+            className="flex-1 btn-secondary flex items-center justify-center gap-2"
+          >
+            ✏️ Bewerken
+          </button>
+        )}
+        <button
+          onClick={() => setDeleteConfirm(true)}
+          className="flex-1 font-semibold px-4 py-2 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition-colors"
+        >
+          🗑️ Verwijderen
+        </button>
+      </div>
+
+      <button onClick={onBack} className="btn-secondary w-full mt-3">
         Terug naar home
       </button>
 
