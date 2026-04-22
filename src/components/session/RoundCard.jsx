@@ -7,11 +7,15 @@ export default function RoundCard({
   session,
   players,
   matches,
+  nicknames,
   onScoreSaved,
   onEdit,
   muted,
 }) {
-  const playerName = (id) => players.find((p) => p.id === id)?.name ?? '?'
+  const playerName = (id) => {
+    const nick = nicknames?.[id]
+    return nick?.trim() || players.find((p) => p.id === id)?.name || '?'
+  }
 
   const findMatch = (row) =>
     matches.find(
@@ -70,6 +74,7 @@ export default function RoundCard({
                   scheduleRow={row}
                   session={session}
                   players={players}
+                  nicknames={nicknames}
                   onSaved={onScoreSaved}
                 />
               ) : (
@@ -77,6 +82,7 @@ export default function RoundCard({
                   scheduleRow={row}
                   session={session}
                   players={players}
+                  nicknames={nicknames}
                   onSaved={onScoreSaved}
                 />
               )

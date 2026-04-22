@@ -7,6 +7,7 @@ export default function NewSessionModal({ players, onCreated, onClose }) {
 
   const [date, setDate] = useState(today)
   const [selectedIds, setSelectedIds] = useState([])
+  const [nicknames, setNicknames] = useState({})
   const [scoreMode, setScoreMode] = useState('points')
   const [pointsPerMatch, setPointsPerMatch] = useState(16)
   const [totalMatches, setTotalMatches] = useState(0)
@@ -20,6 +21,9 @@ export default function NewSessionModal({ players, onCreated, onClose }) {
   }, [maxMatches])
 
   const togglePlayer = (id) => {
+    if (selectedIds.includes(id)) {
+      setNicknames((prev) => { const n = { ...prev }; delete n[id]; return n })
+    }
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     )
@@ -40,6 +44,10 @@ export default function NewSessionModal({ players, onCreated, onClose }) {
     try {
       await supabase.from('sessions').update({ is_active: false }).eq('is_active', true)
 
+      const cleanNicknames = Object.fromEntries(
+        Object.entries(nicknames).filter(([id, v]) => selectedIds.includes(id) && v?.trim())
+      )
+
       const { data: session, error: sessionErr } = await supabase
         .from('sessions')
         .insert({
@@ -50,6 +58,7 @@ export default function NewSessionModal({ players, onCreated, onClose }) {
           total_matches: totalMatches,
           is_active: true,
           is_completed: false,
+          nicknames: cleanNicknames,
         })
         .select()
         .single()
@@ -85,12 +94,10 @@ export default function NewSessionModal({ players, onCreated, onClose }) {
   const showMatchCount = selectedIds.length >= 4 && selectedIds.length <= 5
 
   return (
-    // Overlay: pb-16 on mobile so modal stops above the bottom nav
     <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 pb-16 sm:pb-0">
-      {/* Modal: full-height on mobile, constrained on sm+ */}
       <div className="bg-white w-full h-full sm:h-auto sm:rounded-2xl sm:max-w-md sm:max-h-[90vh] flex flex-col">
 
-        {/* Header — fixed at top */}
+        {/* Header */}
         <div className="flex items-center justify-between px-4 py-4 border-b border-gray-100 shrink-0">
           <h2 className="text-lg font-bold text-gray-900">Nieuwe sessie</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
@@ -138,6 +145,34 @@ export default function NewSessionModal({ players, onCreated, onClose }) {
               <p className="text-red-500 text-xs mt-1">Selecteer precies 4 of 5 spelers</p>
             )}
           </div>
+
+          {/* Bijnamen */}
+          {selectedIds.length > 0 && (
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-2 uppercase tracking-wide">
+                Bijnamen (optioneel)
+              </label>
+              <div className="space-y-2">
+                {selectedIds.map((id) => {
+                  const player = players.find((p) => p.id === id)
+                  return (
+                    <div key={id} className="flex items-center gap-3">
+                      <span className="w-20 text-sm text-gray-600 truncate shrink-0">{player?.name}</span>
+                      <input
+                        type="text"
+                        placeholder='bijv. "The Wall"'
+                        value={nicknames[id] || ''}
+                        onChange={(e) =>
+                          setNicknames((prev) => ({ ...prev, [id]: e.target.value }))
+                        }
+                        className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      />
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Score mode */}
           <div>
@@ -211,7 +246,7 @@ export default function NewSessionModal({ players, onCreated, onClose }) {
           )}
         </div>
 
-        {/* Sticky footer — Start sessie button always visible */}
+        {/* Sticky footer */}
         <div className="shrink-0 px-4 py-4 bg-white border-t border-gray-100">
           {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
           <button

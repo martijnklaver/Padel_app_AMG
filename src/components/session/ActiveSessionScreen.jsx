@@ -6,12 +6,58 @@ import ScheduleAccordion from './ScheduleAccordion'
 import EditMatchDialog from './EditMatchDialog'
 import ConfirmDialog from '../shared/ConfirmDialog'
 
+function NicknameDialog({ session, players, nicknames, onSave, onClose }) {
+  const sessionPlayers = players.filter((p) => session.player_ids.includes(p.id))
+  const [local, setLocal] = useState({ ...nicknames })
+  const [saving, setSaving] = useState(false)
+
+  const handleSave = async () => {
+    setSaving(true)
+    const clean = Object.fromEntries(
+      Object.entries(local).filter(([, v]) => v?.trim())
+    )
+    await supabase.from('sessions').update({ nicknames: clean }).eq('id', session.id)
+    onSave(clean)
+    setSaving(false)
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm">
+        <h3 className="font-bold text-gray-900 text-lg mb-4">Bijnamen aanpassen</h3>
+        <div className="space-y-3 mb-6">
+          {sessionPlayers.map((p) => (
+            <div key={p.id}>
+              <label className="block text-xs font-medium text-gray-500 mb-1">{p.name}</label>
+              <input
+                type="text"
+                placeholder="Bijnaam (optioneel)"
+                value={local[p.id] || ''}
+                onChange={(e) => setLocal((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </div>
+          ))}
+        </div>
+        <div className="flex gap-3">
+          <button onClick={onClose} className="flex-1 btn-secondary">Annuleren</button>
+          <button onClick={handleSave} disabled={saving} className="flex-1 btn-primary">
+            {saving ? 'Opslaan...' : 'Opslaan'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function ActiveSessionScreen({ session, players, onSessionEnd, editMode, onDoneEditing }) {
   const [schedule, setSchedule] = useState([])
   const [matches, setMatches] = useState([])
-  const [editData, setEditData] = useState(null) // { match, row }
+  const [editData, setEditData] = useState(null)
   const [showStop, setShowStop] = useState(false)
   const [stopping, setStopping] = useState(false)
+  const [nicknames, setNicknames] = useState(session.nicknames ?? {})
+  const [showNicknameDialog, setShowNicknameDialog] = useState(false)
   const advancingRef = useRef(false)
 
   const fetchData = useCallback(async () => {
@@ -70,7 +116,6 @@ export default function ActiveSessionScreen({ session, players, onSessionEnd, ed
           .eq('round_number', nextRound)
         await fetchData()
       } else {
-        // All rounds done — end session
         await supabase
           .from('sessions')
           .update({ is_active: false, is_completed: true })
@@ -109,8 +154,6 @@ export default function ActiveSessionScreen({ session, players, onSessionEnd, ed
   const nextRound = currentRound ? allRounds.find((r) => r > currentRound) : null
   const nextRows = nextRound ? schedule.filter((r) => r.round_number === nextRound) : []
 
-  const sessionPlayers = players.filter((p) => session.player_ids.includes(p.id))
-
   const dateStr = new Date(session.date + 'T12:00:00').toLocaleDateString('nl-NL', {
     day: 'numeric', month: 'long', year: 'numeric',
   })
@@ -118,8 +161,14 @@ export default function ActiveSessionScreen({ session, players, onSessionEnd, ed
   return (
     <div className="max-w-lg mx-auto p-4 pb-20">
       {/* Header */}
-      <div className="mb-4">
+      <div className="flex items-center justify-between mb-4">
         <p className="text-xs text-gray-400">{dateStr}</p>
+        <button
+          onClick={() => setShowNicknameDialog(true)}
+          className="text-xs text-gray-400 hover:text-primary transition-colors"
+        >
+          ✏️ Bijnamen
+        </button>
       </div>
 
       {/* Huidige ronde */}
@@ -130,6 +179,7 @@ export default function ActiveSessionScreen({ session, players, onSessionEnd, ed
           session={session}
           players={players}
           matches={matches}
+          nicknames={nicknames}
           onScoreSaved={handleScoreSaved}
           onEdit={(match, row) => setEditData({ match, row })}
         />
@@ -143,22 +193,24 @@ export default function ActiveSessionScreen({ session, players, onSessionEnd, ed
           session={session}
           players={players}
           matches={matches}
+          nicknames={nicknames}
           muted
         />
       )}
 
-      {/* Schema accordion — bevat score invoer voor alle rondes */}
+      {/* Schema accordion */}
       <ScheduleAccordion
         schedule={schedule}
         matches={matches}
         players={players}
         session={session}
+        nicknames={nicknames}
         onScoreSaved={handleScoreSaved}
         onEdit={editMode ? (match, row) => setEditData({ match, row }) : undefined}
       />
 
-      {/* Live ranking — altijd zichtbaar, herlaadt via matches state */}
-      <LiveRanking session={session} players={players} matches={matches} />
+      {/* Live ranking */}
+      <LiveRanking session={session} players={players} matches={matches} nicknames={nicknames} />
 
       {/* Stop / Klaar-knop */}
       <div className="mt-4">
@@ -195,8 +247,19 @@ export default function ActiveSessionScreen({ session, players, onSessionEnd, ed
           match={editData.match}
           session={session}
           players={players}
+          nicknames={nicknames}
           onSaved={() => { setEditData(null); fetchData() }}
           onClose={() => setEditData(null)}
+        />
+      )}
+
+      {showNicknameDialog && (
+        <NicknameDialog
+          session={session}
+          players={players}
+          nicknames={nicknames}
+          onSave={(updated) => { setNicknames(updated); setShowNicknameDialog(false) }}
+          onClose={() => setShowNicknameDialog(false)}
         />
       )}
     </div>

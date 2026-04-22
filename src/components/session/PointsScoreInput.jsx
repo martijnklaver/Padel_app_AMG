@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../../supabaseClient'
 
-export default function PointsScoreInput({ scheduleRow, session, players, onSaved }) {
+export default function PointsScoreInput({ scheduleRow, session, players, nicknames, onSaved }) {
   const [s1, setS1] = useState('')
   const [s2, setS2] = useState('')
   const [saving, setSaving] = useState(false)
@@ -12,7 +12,10 @@ export default function PointsScoreInput({ scheduleRow, session, players, onSave
   const sumOk = n1 + n2 === session.points_per_match
   const showWarn = s1 !== '' && s2 !== '' && !sumOk
 
-  const playerName = (id) => players.find((p) => p.id === id)?.name ?? '?'
+  const playerName = (id) => {
+    const nick = nicknames?.[id]
+    return nick?.trim() || players.find((p) => p.id === id)?.name || '?'
+  }
   const team1 = `${playerName(scheduleRow.team1_p1)} & ${playerName(scheduleRow.team1_p2)}`
   const team2 = `${playerName(scheduleRow.team2_p1)} & ${playerName(scheduleRow.team2_p2)}`
 

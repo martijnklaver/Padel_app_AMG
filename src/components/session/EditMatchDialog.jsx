@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../../supabaseClient'
 
-export default function EditMatchDialog({ match, session, players, onSaved, onClose }) {
+export default function EditMatchDialog({ match, session, players, nicknames, onSaved, onClose }) {
   const isPoints = session.score_mode === 'points'
 
   const [s1, setS1] = useState(String(match.score_team1 ?? ''))
@@ -10,7 +10,10 @@ export default function EditMatchDialog({ match, session, players, onSaved, onCl
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
 
-  const playerName = (id) => players.find((p) => p.id === id)?.name ?? '?'
+  const playerName = (id) => {
+    const nick = nicknames?.[id]
+    return nick?.trim() || players.find((p) => p.id === id)?.name || '?'
+  }
 
   const n1 = parseInt(s1) || 0
   const n2 = parseInt(s2) || 0

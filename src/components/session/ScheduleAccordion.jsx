@@ -1,14 +1,17 @@
 import { useState } from 'react'
 import { supabase } from '../../supabaseClient'
 
-function ScoreRow({ row, session, players, onSaved }) {
+function ScoreRow({ row, session, players, nicknames, onSaved }) {
   const isPoints = session.score_mode === 'points'
   const [s1, setS1] = useState('')
   const [s2, setS2] = useState('')
   const [winner, setWinner] = useState(null)
   const [saving, setSaving] = useState(false)
 
-  const playerName = (id) => players.find((p) => p.id === id)?.name ?? '?'
+  const playerName = (id) => {
+    const nick = nicknames?.[id]
+    return nick?.trim() || players.find((p) => p.id === id)?.name || '?'
+  }
   const t1 = `${playerName(row.team1_p1)} & ${playerName(row.team1_p2)}`
   const t2 = `${playerName(row.team2_p1)} & ${playerName(row.team2_p2)}`
 
@@ -105,10 +108,13 @@ function ScoreRow({ row, session, players, onSaved }) {
   )
 }
 
-export default function ScheduleAccordion({ schedule, matches, players, session, onScoreSaved, onEdit }) {
+export default function ScheduleAccordion({ schedule, matches, players, session, nicknames, onScoreSaved, onEdit }) {
   const [open, setOpen] = useState(false)
 
-  const playerName = (id) => players.find((p) => p.id === id)?.name ?? '?'
+  const playerName = (id) => {
+    const nick = nicknames?.[id]
+    return nick?.trim() || players.find((p) => p.id === id)?.name || '?'
+  }
   const rounds = [...new Set(schedule.map((r) => r.round_number))].sort((a, b) => a - b)
 
   const findMatch = (row) =>
@@ -193,6 +199,7 @@ export default function ScheduleAccordion({ schedule, matches, players, session,
                           row={row}
                           session={session}
                           players={players}
+                          nicknames={nicknames}
                           onSaved={onScoreSaved}
                         />
                       )}

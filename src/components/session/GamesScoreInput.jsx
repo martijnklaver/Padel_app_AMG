@@ -1,12 +1,15 @@
 import { useState } from 'react'
 import { supabase } from '../../supabaseClient'
 
-export default function GamesScoreInput({ scheduleRow, session, players, onSaved }) {
+export default function GamesScoreInput({ scheduleRow, session, players, nicknames, onSaved }) {
   const [selected, setSelected] = useState(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
 
-  const playerName = (id) => players.find((p) => p.id === id)?.name ?? '?'
+  const playerName = (id) => {
+    const nick = nicknames?.[id]
+    return nick?.trim() || players.find((p) => p.id === id)?.name || '?'
+  }
   const team1 = `${playerName(scheduleRow.team1_p1)} & ${playerName(scheduleRow.team1_p2)}`
   const team2 = `${playerName(scheduleRow.team2_p1)} & ${playerName(scheduleRow.team2_p2)}`
 

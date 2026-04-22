@@ -1,6 +1,6 @@
 import { computeSessionRanking } from '../../utils/tournament'
 
-export default function LiveRanking({ session, players, matches }) {
+export default function LiveRanking({ session, players, matches, nicknames }) {
   const ranking = computeSessionRanking(session, players, matches)
   const isPoints = session.score_mode === 'points'
 
@@ -39,7 +39,7 @@ export default function LiveRanking({ session, players, matches }) {
                 className={i === 0 && !noData ? 'font-semibold text-primary' : 'text-gray-700'}
               >
                 <td className="py-1.5">{i + 1}</td>
-                <td className="py-1.5">{p.name}</td>
+                <td className="py-1.5">{nicknames?.[p.id]?.trim() || p.name}</td>
                 <td className="text-right py-1.5">{noData ? '–' : val1}</td>
                 <td className="text-right py-1.5">{noData ? '–' : val2}</td>
                 <td className="text-right py-1.5">{pct !== null ? `${pct}%` : '–'}</td>
