@@ -125,6 +125,7 @@ export default function App() {
             session={endedSession}
             players={players}
             onBack={handleBackToHome}
+            onEdit={handleEditSession}
           />
         )
       }

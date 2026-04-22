@@ -169,7 +169,21 @@ export default function EditSessionScreen({ session, players, onDone }) {
           (m.team1_p1 === row.team1_p2 && m.team1_p2 === row.team1_p1))
     )
 
-  const rounds = [...new Set(schedule.map((r) => r.round_number))].sort((a, b) => a - b)
+  // When schedule is empty (e.g. session stopped before rounds started),
+  // fall back to building rows from the matches table directly.
+  const effectiveRows = schedule.length > 0
+    ? schedule
+    : matches.map((m) => ({
+        id: `match-${m.id}`,
+        session_id: m.session_id,
+        round_number: m.round_number,
+        team1_p1: m.team1_p1,
+        team1_p2: m.team1_p2,
+        team2_p1: m.team2_p1,
+        team2_p2: m.team2_p2,
+      }))
+
+  const rounds = [...new Set(effectiveRows.map((r) => r.round_number))].sort((a, b) => a - b)
 
   return (
     <div className="max-w-lg mx-auto p-4 pb-24">
@@ -194,10 +208,12 @@ export default function EditSessionScreen({ session, players, onDone }) {
 
       {loading ? (
         <p className="text-center text-gray-400 py-8">Laden...</p>
+      ) : rounds.length === 0 ? (
+        <p className="text-center text-gray-400 py-8">Geen wedstrijden gevonden voor deze sessie.</p>
       ) : (
         <div className="space-y-5">
           {rounds.map((roundNum) => {
-            const rows = schedule.filter((r) => r.round_number === roundNum)
+            const rows = effectiveRows.filter((r) => r.round_number === roundNum)
             return (
               <div key={roundNum}>
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
