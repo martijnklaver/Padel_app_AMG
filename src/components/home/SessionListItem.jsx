@@ -1,8 +1,4 @@
 export default function SessionListItem({ session, players, onClick, onDelete, onEdit }) {
-  const sessionPlayers = players
-    .filter((p) => session.player_ids.includes(p.id))
-    .map((p) => p.name)
-
   const dateStr = new Date(session.date + 'T12:00:00').toLocaleDateString('nl-NL', {
     day: 'numeric',
     month: 'long',
@@ -19,7 +15,9 @@ export default function SessionListItem({ session, players, onClick, onDelete, o
     <div className="card flex items-center gap-3 hover:border-primary/30 transition-colors">
       <button onClick={onClick} className="flex-1 text-left min-w-0">
         <p className="font-semibold text-gray-900 text-sm">{dateStr}</p>
-        <p className="text-gray-500 text-xs mt-0.5 truncate">{sessionPlayers.join(', ')}</p>
+        {session.location && (
+          <p className="text-gray-500 text-xs mt-0.5 truncate">📍 {session.location}</p>
+        )}
       </button>
 
       <div className="flex items-center gap-1 shrink-0">

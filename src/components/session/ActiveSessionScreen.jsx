@@ -172,7 +172,12 @@ export default function ActiveSessionScreen({ session, players, onSessionEnd, on
               ←
             </button>
           )}
-          <p className="text-xs text-gray-400">{dateStr}</p>
+          <div>
+            <p className="text-xs text-gray-400">{dateStr}</p>
+            {session.location && (
+              <p className="text-xs text-gray-400">📍 {session.location}</p>
+            )}
+          </div>
         </div>
         <button
           onClick={() => setShowNicknameDialog(true)}

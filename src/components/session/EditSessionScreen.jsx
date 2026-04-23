@@ -140,6 +140,8 @@ export default function EditSessionScreen({ session, players, onDone }) {
   const [loading, setLoading] = useState(true)
   const [date, setDate] = useState(session.date)
   const [dateSaved, setDateSaved] = useState(false)
+  const [location, setLocation] = useState(session.location ?? '')
+  const [locationSaved, setLocationSaved] = useState(false)
 
   const fetchData = useCallback(async () => {
     const [{ data: sch }, { data: mch }] = await Promise.all([
@@ -158,6 +160,13 @@ export default function EditSessionScreen({ session, players, onDone }) {
     await supabase.from('sessions').update({ date }).eq('id', session.id)
     setDateSaved(true)
     setTimeout(() => setDateSaved(false), 2000)
+  }
+
+  const handleLocationBlur = async () => {
+    if (location.trim() === (session.location ?? '')) return
+    await supabase.from('sessions').update({ location: location.trim() }).eq('id', session.id)
+    setLocationSaved(true)
+    setTimeout(() => setLocationSaved(false), 2000)
   }
 
   const findMatch = (row) =>
@@ -203,6 +212,22 @@ export default function EditSessionScreen({ session, players, onDone }) {
             className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
           {dateSaved && <span className="text-green-600 text-sm font-medium shrink-0">✓ Opgeslagen</span>}
+        </div>
+      </div>
+
+      {/* Locatie */}
+      <div className="card mb-4">
+        <label className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">Locatie</label>
+        <div className="flex items-center gap-3">
+          <input
+            type="text"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            onBlur={handleLocationBlur}
+            placeholder='bijv. "Spanje"'
+            className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+          />
+          {locationSaved && <span className="text-green-600 text-sm font-medium shrink-0">✓ Opgeslagen</span>}
         </div>
       </div>
 

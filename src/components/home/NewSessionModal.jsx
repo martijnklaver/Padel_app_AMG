@@ -6,6 +6,7 @@ export default function NewSessionModal({ players, onCreated, onClose }) {
   const today = new Date().toISOString().split('T')[0]
 
   const [date, setDate] = useState(today)
+  const [location, setLocation] = useState('')
   const [selectedIds, setSelectedIds] = useState([])
   const [nicknames, setNicknames] = useState({})
   const [scoreMode, setScoreMode] = useState('points')
@@ -34,6 +35,7 @@ export default function NewSessionModal({ players, onCreated, onClose }) {
     selectedIds.length <= 5 &&
     totalMatches > 0 &&
     totalMatches <= maxMatches &&
+    location.trim() !== '' &&
     !submitting
 
   const handleSubmit = async () => {
@@ -52,6 +54,7 @@ export default function NewSessionModal({ players, onCreated, onClose }) {
         .from('sessions')
         .insert({
           date,
+          location: location.trim(),
           player_ids: selectedIds,
           score_mode: scoreMode,
           points_per_match: scoreMode === 'points' ? pointsPerMatch : null,
@@ -113,6 +116,19 @@ export default function NewSessionModal({ players, onCreated, onClose }) {
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+          </div>
+
+          {/* Locatie */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">Locatie</label>
+            <input
+              type="text"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              placeholder='bijv. "Spanje"'
+              required
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
           </div>
