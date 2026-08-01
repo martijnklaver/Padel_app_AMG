@@ -108,8 +108,150 @@ function ScoreRow({ row, session, players, nicknames, onSaved }) {
   )
 }
 
+function InlineEditForm({ match, row, session, players, nicknames, onSaved, onCancel }) {
+  const isPoints = session.score_mode === 'points'
+  const [s1, setS1] = useState(String(match.score_team1 ?? ''))
+  const [s2, setS2] = useState(String(match.score_team2 ?? ''))
+  const [selected, setSelected] = useState(match.winner ?? null)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  const playerName = (id) => {
+    const nick = nicknames?.[id]
+    return nick?.trim() || players.find((p) => p.id === id)?.name || '?'
+  }
+  const t1 = `${playerName(row.team1_p1)} & ${playerName(row.team1_p2)}`
+  const t2 = `${playerName(row.team2_p1)} & ${playerName(row.team2_p2)}`
+
+  const n1 = parseInt(s1) || 0
+  const n2 = parseInt(s2) || 0
+  const showWarn = isPoints && s1 !== '' && s2 !== '' && n1 + n2 !== session.points_per_match
+
+  const handleSave = async () => {
+    if (saving) return
+    setSaving(true)
+
+    let winner, score1, score2
+    if (isPoints) {
+      if (s1 === '' || s2 === '') { setSaving(false); return }
+      winner = n1 > n2 ? 1 : n2 > n1 ? 2 : null
+      score1 = n1; score2 = n2
+    } else {
+      if (!selected) { setSaving(false); return }
+      winner = selected
+      score1 = winner === 1 ? 1 : 0
+      score2 = winner === 2 ? 1 : 0
+    }
+
+    const norm1 = winner === 1 ? 1.0 : winner === 2 ? 0.0 : 0.5
+    const norm2 = winner === 2 ? 1.0 : winner === 1 ? 0.0 : 0.5
+
+    const { error } = await supabase
+      .from('matches')
+      .update({
+        score_team1: score1,
+        score_team2: score2,
+        winner,
+        normalized_score_team1: norm1,
+        normalized_score_team2: norm2,
+      })
+      .eq('id', match.id)
+
+    if (!error) {
+      setSaved(true)
+      setTimeout(onSaved, 800)
+    }
+    setSaving(false)
+  }
+
+  if (saved) {
+    return (
+      <p className="text-xs text-green-600 text-center py-1 mt-1">Score bijgewerkt ✓</p>
+    )
+  }
+
+  if (isPoints) {
+    return (
+      <div className="mt-1 border-t border-gray-100 pt-2">
+        <div className="flex items-center gap-2">
+          <input
+            type="number" min="0" value={s1} onChange={(e) => setS1(e.target.value)}
+            className="w-10 h-9 text-sm font-bold text-center border border-gray-200 rounded-lg focus:outline-none focus:border-primary"
+            style={{ MozAppearance: 'textfield', appearance: 'textfield' }}
+          />
+          <span className="text-gray-300 text-xs">–</span>
+          <input
+            type="number" min="0" value={s2} onChange={(e) => setS2(e.target.value)}
+            className="w-10 h-9 text-sm font-bold text-center border border-gray-200 rounded-lg focus:outline-none focus:border-primary"
+            style={{ MozAppearance: 'textfield', appearance: 'textfield' }}
+          />
+          <div className="flex gap-1 ml-auto">
+            <button
+              onClick={onCancel}
+              className="text-xs px-2 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50"
+            >
+              Annuleren
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving || s1 === '' || s2 === ''}
+              className="text-xs text-white bg-primary rounded-lg px-2 py-1.5 hover:bg-primary-hover disabled:opacity-40"
+            >
+              {saving ? '...' : 'Opslaan'}
+            </button>
+          </div>
+        </div>
+        {showWarn && (
+          <p className="text-amber-500 text-xs text-center mt-1">
+            Som is {n1 + n2}, verwacht {session.points_per_match}
+          </p>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div className="mt-1 border-t border-gray-100 pt-2 space-y-1">
+      <div className="flex gap-2">
+        <button
+          onClick={() => setSelected(1)}
+          className={`flex-1 text-xs py-1.5 rounded-lg border font-medium transition-colors ${
+            selected === 1 ? 'bg-primary text-white border-primary' : 'border-gray-200 text-gray-600 hover:border-primary/40'
+          }`}
+        >
+          {t1}
+        </button>
+        <button
+          onClick={() => setSelected(2)}
+          className={`flex-1 text-xs py-1.5 rounded-lg border font-medium transition-colors ${
+            selected === 2 ? 'bg-primary text-white border-primary' : 'border-gray-200 text-gray-600 hover:border-primary/40'
+          }`}
+        >
+          {t2}
+        </button>
+      </div>
+      <div className="flex gap-1 justify-end">
+        <button
+          onClick={onCancel}
+          className="text-xs px-2 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50"
+        >
+          Annuleren
+        </button>
+        <button
+          onClick={handleSave}
+          disabled={saving || !selected}
+          className="text-xs text-white bg-primary rounded-lg px-2 py-1.5 hover:bg-primary-hover disabled:opacity-40"
+        >
+          {saving ? '...' : 'Opslaan'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function ScheduleAccordion({ schedule, matches, players, session, nicknames, onScoreSaved, onEdit }) {
   const [open, setOpen] = useState(false)
+  const [editingMatchId, setEditingMatchId] = useState(null)
 
   const playerName = (id) => {
     const nick = nicknames?.[id]
@@ -131,6 +273,14 @@ export default function ScheduleAccordion({ schedule, matches, players, session,
     if (!m) return null
     if (session.score_mode === 'games') return m.winner === 1 ? '1 – 0' : '0 – 1'
     return `${m.score_team1} – ${m.score_team2}`
+  }
+
+  const handleEditClick = (match, row) => {
+    if (onEdit) {
+      onEdit(match, row)
+    } else {
+      setEditingMatchId(editingMatchId === match.id ? null : match.id)
+    }
   }
 
   return (
@@ -172,28 +322,39 @@ export default function ScheduleAccordion({ schedule, matches, players, session,
                   return (
                     <div key={row.id}>
                       {done ? (
-                        <div className="text-xs text-gray-700 flex items-center justify-between">
-                          <span>
-                            <span className={match.winner === 1 ? 'font-semibold' : ''}>
-                              {playerName(row.team1_p1)} & {playerName(row.team1_p2)}
+                        <>
+                          <div className="text-xs text-gray-700 flex items-center justify-between">
+                            <span>
+                              <span className={match.winner === 1 ? 'font-semibold' : ''}>
+                                {playerName(row.team1_p1)} & {playerName(row.team1_p2)}
+                              </span>
+                              <span className="text-gray-300 mx-1">vs</span>
+                              <span className={match.winner === 2 ? 'font-semibold' : ''}>
+                                {playerName(row.team2_p1)} & {playerName(row.team2_p2)}
+                              </span>
                             </span>
-                            <span className="text-gray-300 mx-1">vs</span>
-                            <span className={match.winner === 2 ? 'font-semibold' : ''}>
-                              {playerName(row.team2_p1)} & {playerName(row.team2_p2)}
-                            </span>
-                          </span>
-                          <div className="flex items-center gap-1 shrink-0 ml-2">
-                            <span className="font-semibold text-gray-600">{scoreStr(match)}</span>
-                            {onEdit && (
+                            <div className="flex items-center gap-1 shrink-0 ml-2">
+                              <span className="font-semibold text-gray-600">{scoreStr(match)}</span>
                               <button
-                                onClick={() => onEdit(match, row)}
+                                onClick={() => handleEditClick(match, row)}
                                 className="text-gray-400 hover:text-primary ml-1"
                               >
                                 ✏️
                               </button>
-                            )}
+                            </div>
                           </div>
-                        </div>
+                          {!onEdit && editingMatchId === match.id && (
+                            <InlineEditForm
+                              match={match}
+                              row={row}
+                              session={session}
+                              players={players}
+                              nicknames={nicknames}
+                              onSaved={() => { setEditingMatchId(null); onScoreSaved() }}
+                              onCancel={() => setEditingMatchId(null)}
+                            />
+                          )}
+                        </>
                       ) : (
                         <ScoreRow
                           row={row}
