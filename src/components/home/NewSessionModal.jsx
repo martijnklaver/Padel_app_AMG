@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../../supabaseClient'
+import { supabase, uploadPlayerAvatar } from '../../supabaseClient'
 import { maxUniqueMatches, generateSchedule, generateFivePlayerSchedule } from '../../utils/tournament'
 import PlayerAvatar from '../shared/PlayerAvatar'
 
@@ -23,7 +23,7 @@ function generateUniqueOrder(ids, recentOrders) {
   return result
 }
 
-export default function NewSessionModal({ players, onCreated, onClose }) {
+export default function NewSessionModal({ players, onCreated, onClose, onPlayersUpdated }) {
   const today = new Date().toISOString().split('T')[0]
 
   const [date, setDate] = useState(today)
@@ -37,6 +37,7 @@ export default function NewSessionModal({ players, onCreated, onClose }) {
   const [totalMatches, setTotalMatches] = useState(0)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
+  const [uploading, setUploading] = useState({})
 
   const maxMatches = maxUniqueMatches(selectedIds.length)
 
@@ -283,7 +284,31 @@ export default function NewSessionModal({ players, onCreated, onClose }) {
                   const player = players.find((p) => p.id === id)
                   return (
                     <div key={id} className="flex items-center gap-3">
-                      <span className="w-20 text-sm text-gray-600 truncate shrink-0">{player?.name}</span>
+                      <div className="relative shrink-0">
+                        <PlayerAvatar player={player} size={32} />
+                        {uploading[id] ? (
+                          <div className="absolute inset-0 flex items-center justify-center bg-white/70 rounded-full text-xs text-gray-400">·</div>
+                        ) : (
+                          <label className="absolute -bottom-0.5 -right-0.5 w-5 h-5 bg-white rounded-full border border-gray-200 flex items-center justify-center cursor-pointer shadow-sm hover:bg-gray-50 text-xs leading-none">
+                            📷
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={async (e) => {
+                                const file = e.target.files[0]
+                                e.target.value = ''
+                                if (!file) return
+                                setUploading(u => ({ ...u, [id]: true }))
+                                const { url } = await uploadPlayerAvatar(id, file)
+                                if (url) onPlayersUpdated?.(players.map(p => p.id === id ? { ...p, avatar_url: url } : p))
+                                setUploading(u => ({ ...u, [id]: false }))
+                              }}
+                            />
+                          </label>
+                        )}
+                      </div>
+                      <span className="w-16 text-sm text-gray-600 truncate shrink-0">{player?.name}</span>
                       <input
                         type="text"
                         placeholder='bijv. "The Wall"'

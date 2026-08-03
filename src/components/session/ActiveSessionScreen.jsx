@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { supabase, subscribeToSession } from '../../supabaseClient'
+import { supabase, subscribeToSession, uploadPlayerAvatar } from '../../supabaseClient'
 import RoundCard from './RoundCard'
 import LiveRanking from './LiveRanking'
 import ScheduleAccordion from './ScheduleAccordion'
@@ -7,10 +7,11 @@ import EditMatchDialog from './EditMatchDialog'
 import ConfirmDialog from '../shared/ConfirmDialog'
 import PlayerAvatar from '../shared/PlayerAvatar'
 
-function NicknameDialog({ session, players, nicknames, onSave, onClose }) {
+function NicknameDialog({ session, players, nicknames, onSave, onClose, onPlayersUpdated }) {
   const sessionPlayers = players.filter((p) => session.player_ids.includes(p.id))
   const [local, setLocal] = useState({ ...nicknames })
   const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState({})
 
   const handleSave = async () => {
     setSaving(true)
@@ -29,7 +30,30 @@ function NicknameDialog({ session, players, nicknames, onSave, onClose }) {
         <div className="space-y-3 mb-6">
           {sessionPlayers.map((p) => (
             <div key={p.id} className="flex items-center gap-3">
-              <PlayerAvatar player={p} size={36} />
+              <div className="relative shrink-0">
+                <PlayerAvatar player={p} size={36} />
+                {uploading[p.id] ? (
+                  <div className="absolute inset-0 flex items-center justify-center bg-white/70 rounded-full text-xs text-gray-400">·</div>
+                ) : (
+                  <label className="absolute -bottom-0.5 -right-0.5 w-5 h-5 bg-white rounded-full border border-gray-200 flex items-center justify-center cursor-pointer shadow-sm hover:bg-gray-50 text-xs leading-none">
+                    📷
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files[0]
+                        e.target.value = ''
+                        if (!file) return
+                        setUploading(u => ({ ...u, [p.id]: true }))
+                        const { url } = await uploadPlayerAvatar(p.id, file)
+                        if (url) onPlayersUpdated?.(players.map(pl => pl.id === p.id ? { ...pl, avatar_url: url } : pl))
+                        setUploading(u => ({ ...u, [p.id]: false }))
+                      }}
+                    />
+                  </label>
+                )}
+              </div>
               <div className="flex-1">
                 <p className="text-xs font-medium text-gray-600 mb-1">{p.name}</p>
                 <input
@@ -54,7 +78,7 @@ function NicknameDialog({ session, players, nicknames, onSave, onClose }) {
   )
 }
 
-export default function ActiveSessionScreen({ session, players, onSessionEnd, onBack, editMode, onDoneEditing }) {
+export default function ActiveSessionScreen({ session, players, onSessionEnd, onBack, editMode, onDoneEditing, onPlayersUpdated }) {
   const [schedule, setSchedule] = useState([])
   const [matches, setMatches] = useState([])
   const [editData, setEditData] = useState(null)
@@ -288,6 +312,7 @@ export default function ActiveSessionScreen({ session, players, onSessionEnd, on
           nicknames={nicknames}
           onSave={(updated) => { setNicknames(updated); setShowNicknameDialog(false) }}
           onClose={() => setShowNicknameDialog(false)}
+          onPlayersUpdated={onPlayersUpdated}
         />
       )}
     </div>

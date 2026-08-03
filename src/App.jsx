@@ -105,6 +105,7 @@ export default function App() {
           players={players}
           onSessionCreated={handleSessionCreated}
           onEditSession={handleEditSession}
+          onPlayersUpdated={setPlayers}
           onSelectSession={(session) => {
             if (session.is_active) {
               setActiveSession(session)
@@ -149,6 +150,7 @@ export default function App() {
             players={players}
             onSessionEnd={handleSessionEnd}
             onBack={() => setActiveTab('home')}
+            onPlayersUpdated={setPlayers}
           />
         )
       }

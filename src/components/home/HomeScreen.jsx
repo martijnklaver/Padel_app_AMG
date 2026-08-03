@@ -4,7 +4,7 @@ import SessionListItem from './SessionListItem'
 import NewSessionModal from './NewSessionModal'
 import ConfirmDialog from '../shared/ConfirmDialog'
 
-export default function HomeScreen({ players, onSessionCreated, onSelectSession, onEditSession }) {
+export default function HomeScreen({ players, onSessionCreated, onSelectSession, onEditSession, onPlayersUpdated }) {
   const [sessions, setSessions] = useState([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
@@ -108,6 +108,7 @@ export default function HomeScreen({ players, onSessionCreated, onSelectSession,
           players={players}
           onCreated={handleCreated}
           onClose={() => setShowModal(false)}
+          onPlayersUpdated={onPlayersUpdated}
         />
       )}
 

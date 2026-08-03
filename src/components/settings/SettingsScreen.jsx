@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { supabase } from '../../supabaseClient'
+import { supabase, uploadPlayerAvatar } from '../../supabaseClient'
 import PlayerAvatar from '../shared/PlayerAvatar'
 
 export default function SettingsScreen({ players, onPlayersUpdated }) {
@@ -10,6 +10,7 @@ export default function SettingsScreen({ players, onPlayersUpdated }) {
   const [saved, setSaved] = useState({})
   const [uploading, setUploading] = useState({})
   const [avatarSaved, setAvatarSaved] = useState({})
+  const [avatarError, setAvatarError] = useState({})
 
   const handleSave = async (player) => {
     const newName = names[player.id].trim()
@@ -33,16 +34,13 @@ export default function SettingsScreen({ players, onPlayersUpdated }) {
     if (!file) return
     setUploading((u) => ({ ...u, [player.id]: true }))
     setAvatarSaved((s) => ({ ...s, [player.id]: false }))
+    setAvatarError((e) => ({ ...e, [player.id]: null }))
 
-    const path = `${player.id}.jpg`
-    const { error: uploadErr } = await supabase.storage
-      .from('avatars')
-      .upload(path, file, { upsert: true, contentType: file.type })
+    const { error, url } = await uploadPlayerAvatar(player.id, file)
 
-    if (!uploadErr) {
-      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
-      const url = `${publicUrl}?t=${Date.now()}`
-      await supabase.from('players').update({ avatar_url: url }).eq('id', player.id)
+    if (error) {
+      setAvatarError((e) => ({ ...e, [player.id]: error }))
+    } else {
       onPlayersUpdated(players.map((p) => p.id === player.id ? { ...p, avatar_url: url } : p))
       setAvatarSaved((s) => ({ ...s, [player.id]: true }))
       setTimeout(() => setAvatarSaved((s) => ({ ...s, [player.id]: false })), 3000)
@@ -120,6 +118,9 @@ export default function SettingsScreen({ players, onPlayersUpdated }) {
               )}
               {avatarSaved[player.id] && (
                 <span className="text-xs text-green-600 font-medium">Foto opgeslagen ✓</span>
+              )}
+              {avatarError[player.id] && (
+                <span className="text-xs text-red-500">{avatarError[player.id]}</span>
               )}
             </div>
           </div>
