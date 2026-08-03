@@ -1,50 +1,53 @@
-import { useState } from 'react'
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-} from 'recharts'
 import PlayerAvatar from '../shared/PlayerAvatar'
 
-const COLORS = ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#3b82f6']
+const DATE_CUTOFF = '2026-08-03'
 
 export default function PopperStatsCard({ players, sessions, matches, poppers }) {
-  const [activePlayers, setActivePlayers] = useState(() => new Set(players.map(p => p.id)))
+  // Filter op sessies vanaf de cutoff datum
+  const validSessionIds = new Set(
+    sessions.filter(s => s.date >= DATE_CUTOFF).map(s => s.id)
+  )
+  const datePoppers = poppers.filter(p => validSessionIds.has(p.session_id))
+  const dateMatches = matches.filter(m => validSessionIds.has(m.session_id))
 
-  if (poppers.length === 0) {
+  if (datePoppers.length === 0) {
     return (
       <div className="card">
-        <h3 className="font-semibold text-gray-700 mb-2">Popper statistieken</h3>
+        <h3 className="font-semibold text-gray-700 mb-2">🎾 Popper stats</h3>
         <p className="text-gray-400 text-sm">Nog geen poppers geregistreerd</p>
       </div>
     )
   }
 
-  // 1. Overall ranking
+  // Potjes gespeeld per speler (alleen als hij/zij daadwerkelijk speelde)
   const matchesPlayed = {}
-  matches.forEach(m => {
+  dateMatches.forEach(m => {
     [m.team1_p1, m.team1_p2, m.team2_p1, m.team2_p2].forEach(id => {
       matchesPlayed[id] = (matchesPlayed[id] || 0) + 1
     })
   })
 
+  // Totaal poppers per speler
   const popperTotals = {}
-  poppers.forEach(p => {
+  datePoppers.forEach(p => {
     popperTotals[p.player_id] = (popperTotals[p.player_id] || 0) + p.count
   })
 
+  // Overall ranking
   const overallRanking = players
     .map(p => ({
       ...p,
       total: popperTotals[p.id] || 0,
       avg: matchesPlayed[p.id]
         ? ((popperTotals[p.id] || 0) / matchesPlayed[p.id]).toFixed(1)
-        : '0.0',
+        : '–',
     }))
     .filter(p => p.total > 0)
     .sort((a, b) => b.total - a.total)
 
-  // 2. Per-opponent breakdown
+  // Per-opponent breakdown
   const opponentCountsByPlayer = {}
-  poppers.forEach(p => {
+  datePoppers.forEach(p => {
     if (!opponentCountsByPlayer[p.player_id]) opponentCountsByPlayer[p.player_id] = {}
     ;(p.opponent_ids || []).forEach(oppId => {
       opponentCountsByPlayer[p.player_id][oppId] =
@@ -69,59 +72,22 @@ export default function PopperStatsCard({ players, sessions, matches, poppers })
     .filter(Boolean)
     .sort((a, b) => b.count - a.count)
 
-  // 3. Chart data — poppers per player per session
-  const sessionPopperMap = {}
-  poppers.forEach(p => {
-    if (!sessionPopperMap[p.session_id]) sessionPopperMap[p.session_id] = {}
-    sessionPopperMap[p.session_id][p.player_id] =
-      (sessionPopperMap[p.session_id][p.player_id] || 0) + p.count
-  })
-
-  const sortedSessions = [...sessions].sort((a, b) => a.date.localeCompare(b.date))
-  const chartData = sortedSessions.map(session => {
-    const point = {
-      date: new Date(session.date + 'T12:00:00').toLocaleDateString('nl-NL', {
-        day: 'numeric', month: 'short',
-      }),
-    }
-    players.forEach(player => {
-      if (session.player_ids?.includes(player.id)) {
-        const val = sessionPopperMap[session.id]?.[player.id]
-        if (val !== undefined) point[player.id] = val
-      }
-    })
-    return point
-  })
-
-  const hasChartData = sortedSessions.length >= 2 && Object.keys(sessionPopperMap).length > 0
-
-  const togglePlayer = (id) => {
-    setActivePlayers(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) {
-        if (next.size === 1) return prev
-        next.delete(id)
-      } else {
-        next.add(id)
-      }
-      return next
-    })
-  }
-
   return (
-    <div className="space-y-4">
-      {/* Overall ranking */}
-      {overallRanking.length > 0 && (
-        <div className="card">
-          <h3 className="font-semibold text-gray-700 mb-3">Meeste poppers overall</h3>
+    <div className="card">
+      <h3 className="font-semibold text-gray-700 mb-4">🎾 Popper stats</h3>
 
+      {/* Onderdeel 1: Overall ranking */}
+      {overallRanking.length > 0 && (
+        <>
           {/* Poppermeister banner */}
           <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl p-3 mb-3">
             <PlayerAvatar player={overallRanking[0]} size={40} />
             <div>
               <p className="text-[10px] font-semibold text-amber-600 uppercase tracking-wide mb-0.5">🏆 Poppermeister</p>
               <p className="font-bold text-gray-900 text-sm">{overallRanking[0].name}</p>
-              <p className="text-xs text-gray-500">{overallRanking[0].total} poppers · {overallRanking[0].avg} per potje</p>
+              <p className="text-xs text-gray-500">
+                {overallRanking[0].total} poppers · {overallRanking[0].avg} per potje
+              </p>
             </div>
           </div>
 
@@ -152,83 +118,32 @@ export default function PopperStatsCard({ players, sessions, matches, poppers })
               </tbody>
             </table>
           )}
-        </div>
+        </>
       )}
 
-      {/* Per-opponent breakdown */}
+      {/* Scheiding */}
+      {overallRanking.length > 0 && perOpponentRows.length > 0 && (
+        <div className="border-t border-gray-100 my-4" />
+      )}
+
+      {/* Onderdeel 2: Per-opponent breakdown */}
       {perOpponentRows.length > 0 && (
-        <div className="card">
-          <h3 className="font-semibold text-gray-700 mb-3">Popper verdeling per tegenstander</h3>
+        <>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2.5">Meeste poppers tegen</p>
           <div className="space-y-2.5">
             {perOpponentRows.map(({ player, topOpp, count }) => (
               <div key={player.id} className="flex items-center gap-2 text-sm flex-wrap">
-                <PlayerAvatar player={player} size={24} />
+                <PlayerAvatar player={player} size={22} />
                 <span className="font-medium text-gray-800">{player.name}</span>
                 <span className="text-gray-400 text-xs">→ meeste vs</span>
-                <PlayerAvatar player={topOpp} size={20} />
+                <PlayerAvatar player={topOpp} size={18} />
                 <span className="text-gray-700">{topOpp?.name}</span>
                 <span className="ml-auto text-xs font-semibold text-gray-500 tabular-nums">{count}×</span>
               </div>
             ))}
           </div>
-        </div>
+        </>
       )}
-
-      {/* Chart */}
-      <div className="card">
-        <h3 className="font-semibold text-gray-700 mb-3">Popper grafiek</h3>
-        {!hasChartData ? (
-          <p className="text-gray-400 text-sm">Minimaal 2 sessies met poppers nodig</p>
-        ) : (
-          <>
-            <div className="flex flex-wrap gap-1.5 mb-4">
-              {players.map((player, i) => {
-                const active = activePlayers.has(player.id)
-                return (
-                  <button
-                    key={player.id}
-                    onClick={() => togglePlayer(player.id)}
-                    className="text-xs px-2.5 py-1 rounded-full font-medium border transition-all"
-                    style={
-                      active
-                        ? { backgroundColor: COLORS[i % COLORS.length], color: '#fff', borderColor: COLORS[i % COLORS.length] }
-                        : { backgroundColor: '#f3f4f6', color: '#9ca3af', borderColor: '#e5e7eb' }
-                    }
-                  >
-                    {player.name}
-                  </button>
-                )
-              })}
-            </div>
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={chartData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#9ca3af' }} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} tickLine={false} allowDecimals={false} />
-                <Tooltip
-                  formatter={(value, dataKey) => [value, players.find(p => p.id === dataKey)?.name ?? dataKey]}
-                  labelStyle={{ fontWeight: 600, color: '#374151', marginBottom: 4 }}
-                />
-                {players.map((player, i) =>
-                  activePlayers.has(player.id) ? (
-                    <Line
-                      key={player.id}
-                      type="monotone"
-                      dataKey={player.id}
-                      name={player.id}
-                      stroke={COLORS[i % COLORS.length]}
-                      strokeWidth={2}
-                      dot={{ r: 3, fill: COLORS[i % COLORS.length] }}
-                      activeDot={{ r: 5 }}
-                      connectNulls={false}
-                    />
-                  ) : null
-                )}
-              </LineChart>
-            </ResponsiveContainer>
-          </>
-        )}
-      </div>
     </div>
   )
 }
