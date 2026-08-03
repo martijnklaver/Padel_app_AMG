@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase, saveMatchPoppers } from '../../supabaseClient'
 import PopperSection from './PopperSection'
+import PlayerAvatar from '../shared/PlayerAvatar'
 
 function ScoreRow({ row, session, players, nicknames, onSaved }) {
   const isPoints = session.score_mode === 'points'
@@ -371,17 +372,25 @@ export default function ScheduleAccordion({ schedule, matches, players, session,
                     <div key={row.id}>
                       {done ? (
                         <>
-                          <div className="text-xs text-gray-700 flex items-center justify-between">
-                            <span>
-                              <span className={match.winner === 1 ? 'font-semibold' : ''}>
-                                {playerName(row.team1_p1)} & {playerName(row.team1_p2)}
+                          <div className="text-xs text-gray-700 flex items-center justify-between gap-1">
+                            <div className="flex items-center gap-1 flex-wrap min-w-0">
+                              <span className={`flex items-center gap-0.5 ${match.winner === 1 ? 'font-semibold' : ''}`}>
+                                <PlayerAvatar player={players.find(p => p.id === row.team1_p1)} size={14} />
+                                {playerName(row.team1_p1)}
+                                <span className="text-gray-300 mx-0.5">·</span>
+                                <PlayerAvatar player={players.find(p => p.id === row.team1_p2)} size={14} />
+                                {playerName(row.team1_p2)}
                               </span>
-                              <span className="text-gray-300 mx-1">vs</span>
-                              <span className={match.winner === 2 ? 'font-semibold' : ''}>
-                                {playerName(row.team2_p1)} & {playerName(row.team2_p2)}
+                              <span className="text-gray-300 mx-0.5">vs</span>
+                              <span className={`flex items-center gap-0.5 ${match.winner === 2 ? 'font-semibold' : ''}`}>
+                                <PlayerAvatar player={players.find(p => p.id === row.team2_p1)} size={14} />
+                                {playerName(row.team2_p1)}
+                                <span className="text-gray-300 mx-0.5">·</span>
+                                <PlayerAvatar player={players.find(p => p.id === row.team2_p2)} size={14} />
+                                {playerName(row.team2_p2)}
                               </span>
-                            </span>
-                            <div className="flex items-center gap-1 shrink-0 ml-2">
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
                               <span className="font-semibold text-gray-600">{scoreStr(match)}</span>
                               <button
                                 onClick={() => handleEditClick(match, row)}

@@ -1,5 +1,6 @@
 import PointsScoreInput from './PointsScoreInput'
 import GamesScoreInput from './GamesScoreInput'
+import PlayerAvatar from '../shared/PlayerAvatar'
 
 export default function RoundCard({
   title,
@@ -46,13 +47,18 @@ export default function RoundCard({
         const match = findMatch(row)
         const done = match?.is_completed
 
+        const p = (id) => players.find((pl) => pl.id === id)
         return (
           <div key={row.id}>
             {done ? (
               <div className="flex items-center gap-2">
-                <span className={`flex-1 text-center text-sm ${match.winner === 1 ? 'font-semibold text-gray-900' : 'text-gray-500'}`}>
-                  {playerName(row.team1_p1)} & {playerName(row.team1_p2)}
-                </span>
+                <div className={`flex-1 flex flex-col items-center gap-1 text-sm ${match.winner === 1 ? 'font-semibold text-gray-900' : 'text-gray-500'}`}>
+                  <div className="flex gap-1 justify-center">
+                    <PlayerAvatar player={p(row.team1_p1)} size={20} />
+                    <PlayerAvatar player={p(row.team1_p2)} size={20} />
+                  </div>
+                  <span className="text-center leading-tight">{playerName(row.team1_p1)} & {playerName(row.team1_p2)}</span>
+                </div>
                 <div className="flex items-center gap-1 shrink-0">
                   <span className="font-bold text-gray-800 text-sm">{scoreLabel(match)}</span>
                   {onEdit && (
@@ -64,9 +70,13 @@ export default function RoundCard({
                     </button>
                   )}
                 </div>
-                <span className={`flex-1 text-center text-sm ${match.winner === 2 ? 'font-semibold text-gray-900' : 'text-gray-500'}`}>
-                  {playerName(row.team2_p1)} & {playerName(row.team2_p2)}
-                </span>
+                <div className={`flex-1 flex flex-col items-center gap-1 text-sm ${match.winner === 2 ? 'font-semibold text-gray-900' : 'text-gray-500'}`}>
+                  <div className="flex gap-1 justify-center">
+                    <PlayerAvatar player={p(row.team2_p1)} size={20} />
+                    <PlayerAvatar player={p(row.team2_p2)} size={20} />
+                  </div>
+                  <span className="text-center leading-tight">{playerName(row.team2_p1)} & {playerName(row.team2_p2)}</span>
+                </div>
               </div>
             ) : !muted ? (
               session.score_mode === 'points' ? (
@@ -88,13 +98,21 @@ export default function RoundCard({
               )
             ) : (
               <div className="flex items-center gap-2 text-sm text-gray-500">
-                <span className="flex-1 text-center">
-                  {playerName(row.team1_p1)} & {playerName(row.team1_p2)}
-                </span>
+                <div className="flex-1 flex flex-col items-center gap-1">
+                  <div className="flex gap-1 justify-center">
+                    <PlayerAvatar player={p(row.team1_p1)} size={18} />
+                    <PlayerAvatar player={p(row.team1_p2)} size={18} />
+                  </div>
+                  <span className="text-center text-xs">{playerName(row.team1_p1)} & {playerName(row.team1_p2)}</span>
+                </div>
                 <span className="text-gray-300 shrink-0">vs</span>
-                <span className="flex-1 text-center">
-                  {playerName(row.team2_p1)} & {playerName(row.team2_p2)}
-                </span>
+                <div className="flex-1 flex flex-col items-center gap-1">
+                  <div className="flex gap-1 justify-center">
+                    <PlayerAvatar player={p(row.team2_p1)} size={18} />
+                    <PlayerAvatar player={p(row.team2_p2)} size={18} />
+                  </div>
+                  <span className="text-center text-xs">{playerName(row.team2_p1)} & {playerName(row.team2_p2)}</span>
+                </div>
               </div>
             )}
           </div>

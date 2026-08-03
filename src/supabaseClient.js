@@ -34,20 +34,26 @@ export async function uploadPlayerAvatar(playerId, file) {
   const path = `${playerId}.jpg`
   console.log('[avatar] uploading', path, 'type:', file.type, 'size:', file.size)
 
+  const arrayBuffer = await file.arrayBuffer()
+
   const { error: uploadErr } = await supabase.storage
     .from('avatars')
-    .upload(path, file, { upsert: true, contentType: file.type })
+    .upload(path, arrayBuffer, { upsert: true, contentType: file.type })
 
   if (uploadErr) {
     console.error('[avatar] storage error:', uploadErr)
     return { error: uploadErr.message || 'Upload mislukt', url: null }
   }
 
-  const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
-  const url = `${publicUrl}?t=${Date.now()}`
+  const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path)
+  const url = `${urlData.publicUrl}?t=${Date.now()}`
   console.log('[avatar] public url:', url)
 
-  const { error: dbErr } = await supabase.from('players').update({ avatar_url: url }).eq('id', playerId)
+  const { error: dbErr } = await supabase
+    .from('players')
+    .update({ avatar_url: url })
+    .eq('id', playerId)
+
   if (dbErr) {
     console.error('[avatar] db error:', dbErr)
     return { error: dbErr.message || 'Opslaan mislukt', url: null }

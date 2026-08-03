@@ -30,28 +30,51 @@ function NicknameDialog({ session, players, nicknames, onSave, onClose, onPlayer
         <div className="space-y-3 mb-6">
           {sessionPlayers.map((p) => (
             <div key={p.id} className="flex items-center gap-3">
-              <div className="relative shrink-0">
-                <PlayerAvatar player={p} size={36} />
-                {uploading[p.id] ? (
-                  <div className="absolute inset-0 flex items-center justify-center bg-white/70 rounded-full text-xs text-gray-400">·</div>
-                ) : (
-                  <label className="absolute -bottom-0.5 -right-0.5 w-5 h-5 bg-white rounded-full border border-gray-200 flex items-center justify-center cursor-pointer shadow-sm hover:bg-gray-50 text-xs leading-none">
-                    📷
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={async (e) => {
-                        const file = e.target.files[0]
-                        e.target.value = ''
-                        if (!file) return
-                        setUploading(u => ({ ...u, [p.id]: true }))
-                        const { url } = await uploadPlayerAvatar(p.id, file)
-                        if (url) onPlayersUpdated?.(players.map(pl => pl.id === p.id ? { ...pl, avatar_url: url } : pl))
-                        setUploading(u => ({ ...u, [p.id]: false }))
-                      }}
-                    />
-                  </label>
+              <div className="shrink-0 flex flex-col items-center gap-1">
+                <div className="relative">
+                  <PlayerAvatar player={p} size={48} />
+                  {uploading[p.id] && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-white/70 rounded-full text-xs text-gray-400">·</div>
+                  )}
+                </div>
+                {!uploading[p.id] && (
+                  <div className="flex gap-2">
+                    <label className="text-xs text-gray-400 hover:text-primary cursor-pointer leading-none">
+                      📷
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files[0]
+                          e.target.value = ''
+                          if (!file) return
+                          setUploading(u => ({ ...u, [p.id]: true }))
+                          const { url } = await uploadPlayerAvatar(p.id, file)
+                          if (url) onPlayersUpdated?.(players.map(pl => pl.id === p.id ? { ...pl, avatar_url: url } : pl))
+                          setUploading(u => ({ ...u, [p.id]: false }))
+                        }}
+                      />
+                    </label>
+                    <label className="text-xs text-gray-400 hover:text-primary cursor-pointer leading-none">
+                      📸
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="user"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files[0]
+                          e.target.value = ''
+                          if (!file) return
+                          setUploading(u => ({ ...u, [p.id]: true }))
+                          const { url } = await uploadPlayerAvatar(p.id, file)
+                          if (url) onPlayersUpdated?.(players.map(pl => pl.id === p.id ? { ...pl, avatar_url: url } : pl))
+                          setUploading(u => ({ ...u, [p.id]: false }))
+                        }}
+                      />
+                    </label>
+                  </div>
                 )}
               </div>
               <div className="flex-1">

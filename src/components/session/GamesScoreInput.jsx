@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase, saveMatchPoppers } from '../../supabaseClient'
 import PopperSection from './PopperSection'
+import PlayerAvatar from '../shared/PlayerAvatar'
 
 export default function GamesScoreInput({ scheduleRow, session, players, nicknames, onSaved }) {
   const [selected, setSelected] = useState(null)
@@ -12,6 +13,7 @@ export default function GamesScoreInput({ scheduleRow, session, players, nicknam
     const nick = nicknames?.[id]
     return nick?.trim() || players.find((p) => p.id === id)?.name || '?'
   }
+  const playerObj = (id) => players.find((p) => p.id === id)
   const team1 = `${playerName(scheduleRow.team1_p1)} & ${playerName(scheduleRow.team1_p2)}`
   const team2 = `${playerName(scheduleRow.team2_p1)} & ${playerName(scheduleRow.team2_p2)}`
 
@@ -60,10 +62,14 @@ export default function GamesScoreInput({ scheduleRow, session, players, nicknam
       <div className="flex items-center gap-2 mb-4">
         <button
           onClick={() => setSelected(1)}
-          className={`flex-1 text-center font-semibold text-lg leading-tight rounded-xl py-3 px-2 transition-all ${
+          className={`flex-1 text-center font-semibold text-base leading-tight rounded-xl py-3 px-2 transition-all ${
             selected === 1 ? 'text-primary bg-primary/10' : 'text-gray-800 hover:bg-gray-50'
           }`}
         >
+          <div className="flex gap-1 justify-center mb-1.5">
+            <PlayerAvatar player={playerObj(scheduleRow.team1_p1)} size={24} />
+            <PlayerAvatar player={playerObj(scheduleRow.team1_p2)} size={24} />
+          </div>
           {team1}
           {selected === 1 && <div className="text-sm mt-0.5">🏆</div>}
         </button>
@@ -72,10 +78,14 @@ export default function GamesScoreInput({ scheduleRow, session, players, nicknam
 
         <button
           onClick={() => setSelected(2)}
-          className={`flex-1 text-center font-semibold text-lg leading-tight rounded-xl py-3 px-2 transition-all ${
+          className={`flex-1 text-center font-semibold text-base leading-tight rounded-xl py-3 px-2 transition-all ${
             selected === 2 ? 'text-primary bg-primary/10' : 'text-gray-800 hover:bg-gray-50'
           }`}
         >
+          <div className="flex gap-1 justify-center mb-1.5">
+            <PlayerAvatar player={playerObj(scheduleRow.team2_p1)} size={24} />
+            <PlayerAvatar player={playerObj(scheduleRow.team2_p2)} size={24} />
+          </div>
           {team2}
           {selected === 2 && <div className="text-sm mt-0.5">🏆</div>}
         </button>

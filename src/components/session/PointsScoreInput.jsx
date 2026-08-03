@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase, saveMatchPoppers } from '../../supabaseClient'
 import PopperSection from './PopperSection'
+import PlayerAvatar from '../shared/PlayerAvatar'
 
 export default function PointsScoreInput({ scheduleRow, session, players, nicknames, onSaved }) {
   const [s1, setS1] = useState('')
@@ -63,12 +64,18 @@ export default function PointsScoreInput({ scheduleRow, session, players, nickna
     }
   }
 
+  const playerObj = (id) => players.find((p) => p.id === id)
+
   return (
     <div>
       <div className="flex items-center gap-2">
-        <span className="flex-1 text-center font-semibold text-lg leading-tight text-gray-800">
-          {team1}
-        </span>
+        <div className="flex-1 flex flex-col items-center gap-1.5">
+          <div className="flex gap-1 justify-center">
+            <PlayerAvatar player={playerObj(scheduleRow.team1_p1)} size={28} />
+            <PlayerAvatar player={playerObj(scheduleRow.team1_p2)} size={28} />
+          </div>
+          <span className="text-center font-semibold text-sm leading-tight text-gray-800">{team1}</span>
+        </div>
         <div className="flex items-center gap-1 shrink-0">
           <input
             type="number"
@@ -88,9 +95,13 @@ export default function PointsScoreInput({ scheduleRow, session, players, nickna
             className="score-input"
           />
         </div>
-        <span className="flex-1 text-center font-semibold text-lg leading-tight text-gray-800">
-          {team2}
-        </span>
+        <div className="flex-1 flex flex-col items-center gap-1.5">
+          <div className="flex gap-1 justify-center">
+            <PlayerAvatar player={playerObj(scheduleRow.team2_p1)} size={28} />
+            <PlayerAvatar player={playerObj(scheduleRow.team2_p2)} size={28} />
+          </div>
+          <span className="text-center font-semibold text-sm leading-tight text-gray-800">{team2}</span>
+        </div>
       </div>
 
       {showWarn && (
