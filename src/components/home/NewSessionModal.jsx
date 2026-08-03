@@ -1,6 +1,27 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../../supabaseClient'
 import { maxUniqueMatches, generateSchedule, generateFivePlayerSchedule } from '../../utils/tournament'
+import PlayerAvatar from '../shared/PlayerAvatar'
+
+function shuffleIds(ids) {
+  const a = [...ids]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
+function generateUniqueOrder(ids, recentOrders) {
+  const recentSet = new Set(recentOrders.map((o) => o.join(',')))
+  let result
+  let attempts = 0
+  do {
+    result = shuffleIds(ids)
+    attempts++
+  } while (recentSet.has(result.join(',')) && attempts < 100)
+  return result
+}
 
 export default function NewSessionModal({ players, onCreated, onClose }) {
   const today = new Date().toISOString().split('T')[0]
@@ -9,7 +30,7 @@ export default function NewSessionModal({ players, onCreated, onClose }) {
   const [location, setLocation] = useState('')
   const [selectedIds, setSelectedIds] = useState([])
   const [playerOrder, setPlayerOrder] = useState([])
-  const [prevSessionOrder, setPrevSessionOrder] = useState(null)
+  const [recentOrders, setRecentOrders] = useState(null)
   const [nicknames, setNicknames] = useState({})
   const [scoreMode, setScoreMode] = useState('points')
   const [pointsPerMatch, setPointsPerMatch] = useState(16)
@@ -17,41 +38,28 @@ export default function NewSessionModal({ players, onCreated, onClose }) {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
 
-  const rotationAppliedRef = useRef(false)
-
   const maxMatches = maxUniqueMatches(selectedIds.length)
 
   useEffect(() => {
     setTotalMatches(maxMatches)
   }, [maxMatches])
 
-  // Haal de player_order van de meest recente sessie op voor automatische rotatie
+  // Haal de player_order van de laatste 3 sessies op voor uniekheidscontrole
   useEffect(() => {
     supabase
       .from('sessions')
       .select('player_order')
       .not('player_order', 'is', null)
       .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-      .then(({ data }) => setPrevSessionOrder(data?.player_order ?? null))
+      .limit(3)
+      .then(({ data }) => setRecentOrders((data ?? []).map((s) => s.player_order)))
   }, [])
 
-  // Pas rotatie toe zodra 5 spelers geselecteerd zijn (eenmalig)
+  // Genereer willekeurige volgorde zodra 5 spelers geselecteerd zijn
   useEffect(() => {
-    if (selectedIds.length < 5) {
-      rotationAppliedRef.current = false
-      return
-    }
-    if (selectedIds.length === 5 && !rotationAppliedRef.current && prevSessionOrder?.length === 5) {
-      const currentSorted = [...selectedIds].sort().join()
-      const prevSorted = [...prevSessionOrder].sort().join()
-      if (currentSorted === prevSorted) {
-        setPlayerOrder([...prevSessionOrder.slice(1), prevSessionOrder[0]])
-        rotationAppliedRef.current = true
-      }
-    }
-  }, [selectedIds, prevSessionOrder])
+    if (selectedIds.length !== 5 || recentOrders === null) return
+    setPlayerOrder((prev) => generateUniqueOrder(prev, recentOrders))
+  }, [selectedIds.length, recentOrders])
 
   const togglePlayer = (id) => {
     if (selectedIds.includes(id)) {
@@ -159,9 +167,6 @@ export default function NewSessionModal({ players, onCreated, onClose }) {
   const showMatchCount = selectedIds.length >= 4 && selectedIds.length <= 5
   const isFivePlayers = selectedIds.length === 5
 
-  // Toon hint als automatische rotatie werd toegepast
-  const rotationApplied = rotationAppliedRef.current
-
   return (
     <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 pb-16 sm:pb-0">
       <div className="bg-white w-full h-full sm:h-auto sm:rounded-2xl sm:max-w-md sm:max-h-[90vh] flex flex-col">
@@ -212,13 +217,14 @@ export default function NewSessionModal({ players, onCreated, onClose }) {
                     key={p.id}
                     type="button"
                     onClick={() => togglePlayer(p.id)}
-                    className={`py-2.5 px-3 rounded-lg border text-sm font-medium transition-colors ${
+                    className={`py-2 px-2 rounded-lg border font-medium transition-colors flex flex-col items-center gap-1.5 ${
                       checked
                         ? 'bg-primary text-white border-primary'
                         : 'bg-white text-gray-700 border-gray-200 hover:border-primary/40'
                     }`}
                   >
-                    {p.name}
+                    <PlayerAvatar player={p} size={32} />
+                    <span className="text-xs leading-tight text-center">{p.name}</span>
                   </button>
                 )
               })}
@@ -234,9 +240,6 @@ export default function NewSessionModal({ players, onCreated, onClose }) {
               <label className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
                 Spelersvolgorde
               </label>
-              {rotationApplied && (
-                <p className="text-xs text-primary mb-2">↻ Automatisch geroteerd op basis van vorige sessie</p>
-              )}
               <div className="space-y-1">
                 {playerOrder.map((id, i) => {
                   const player = players.find((p) => p.id === id)

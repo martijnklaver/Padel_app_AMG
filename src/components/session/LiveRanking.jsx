@@ -1,4 +1,5 @@
 import { computeSessionRanking, assignPositions } from '../../utils/tournament'
+import PlayerAvatar from '../shared/PlayerAvatar'
 
 export default function LiveRanking({ session, players, matches, nicknames }) {
   const isPoints = session.score_mode === 'points'
@@ -42,7 +43,12 @@ export default function LiveRanking({ session, players, matches, nicknames }) {
                 className={`border-b border-gray-100 last:border-b-0 ${p.position === 1 && !noData ? 'bg-orange-50 font-semibold text-primary' : 'text-gray-700'}`}
               >
                 <td className="py-2.5 w-8">{noData ? p.position : (p.medal ?? p.position)}</td>
-                <td className="py-2.5">{nicknames?.[p.id]?.trim() || p.name}</td>
+                <td className="py-2.5">
+                  <div className="flex items-center gap-1.5">
+                    <PlayerAvatar player={p} size={20} />
+                    <span>{nicknames?.[p.id]?.trim() || p.name}</span>
+                  </div>
+                </td>
                 <td className="text-right py-2.5 pl-4">{noData ? '–' : val1}</td>
                 <td className="text-right py-2.5 pl-4">{noData ? '–' : val2}</td>
                 <td className="text-right py-2.5 pl-4">{pct !== null ? `${pct}%` : '–'}</td>

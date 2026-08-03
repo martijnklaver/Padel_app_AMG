@@ -1,4 +1,5 @@
 import { computeRankingFromMatches, assignPositions } from '../../utils/tournament'
+import PlayerAvatar from '../shared/PlayerAvatar'
 
 export default function OverallStatsCard({ players, matches }) {
   const ranking = assignPositions(
@@ -35,7 +36,12 @@ export default function OverallStatsCard({ players, matches }) {
             return (
               <tr key={p.id} className={p.position === 1 ? 'bg-orange-50 font-bold text-primary' : 'text-gray-700'}>
                 <td className="py-2">{p.medal ?? p.position}</td>
-                <td className="py-2">{p.name}</td>
+                <td className="py-2">
+                  <div className="flex items-center gap-2">
+                    <PlayerAvatar player={p} size={22} />
+                    <span>{p.name}</span>
+                  </div>
+                </td>
                 <td className="text-right py-2">{p.played}</td>
                 <td className="text-right py-2">{Math.round(p.wins)}</td>
                 <td className="text-right py-2">{losses}</td>

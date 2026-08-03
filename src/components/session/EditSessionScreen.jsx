@@ -231,6 +231,19 @@ export default function EditSessionScreen({ session, players, onDone }) {
         </div>
       </div>
 
+      {/* Spelersvolgorde */}
+      {session.player_order?.length === 5 && (
+        <div className="card mb-4">
+          <label className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">Spelersvolgorde</label>
+          <p className="text-sm text-gray-700">
+            {session.player_order.map((id, i) => {
+              const name = players.find((p) => p.id === id)?.name || '?'
+              return `Speler ${i + 1}: ${name}`
+            }).join(' | ')}
+          </p>
+        </div>
+      )}
+
       {loading ? (
         <p className="text-center text-gray-400 py-8">Laden...</p>
       ) : rounds.length === 0 ? (

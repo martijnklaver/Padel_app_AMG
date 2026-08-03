@@ -1,4 +1,5 @@
 import { computeRankingFromMatches } from '../../utils/tournament'
+import PlayerAvatar from '../shared/PlayerAvatar'
 
 export default function BestPlayerCard({ players, matches }) {
   const ranking = computeRankingFromMatches(players, matches).filter((p) => p.played > 0)
@@ -30,7 +31,12 @@ export default function BestPlayerCard({ players, matches }) {
           {ranking.map((p, i) => (
             <tr key={p.id} className={i === 0 ? 'font-bold text-primary' : 'text-gray-700'}>
               <td className="py-2">{medals[i] ?? i + 1}</td>
-              <td className="py-2">{p.name}</td>
+              <td className="py-2">
+                <div className="flex items-center gap-2">
+                  <PlayerAvatar player={p} size={22} />
+                  <span>{p.name}</span>
+                </div>
+              </td>
               <td className="text-right py-2">{p.played}</td>
               <td className="text-right py-2">{p.winPct !== null ? `${p.winPct}%` : '–'}</td>
             </tr>

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../supabaseClient'
 import { computeSessionRanking, computeRankingFromMatches, assignPositions } from '../../utils/tournament'
 import ConfirmDialog from '../shared/ConfirmDialog'
+import PlayerAvatar from '../shared/PlayerAvatar'
 
 function RankingTable({ title, ranking, columns }) {
   return (
@@ -25,7 +26,12 @@ function RankingTable({ title, ranking, columns }) {
                 className={`border-b border-gray-100 last:border-b-0 ${p.position === 1 ? 'bg-orange-50 font-bold text-primary' : 'text-gray-700'}`}
               >
                 <td className="py-3">{p.medal ?? p.position}</td>
-                <td className="py-3 truncate">{p.name}</td>
+                <td className="py-3">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <PlayerAvatar player={p} size={24} />
+                    <span className="truncate">{p.name}</span>
+                  </div>
+                </td>
                 {columns.map((col) => (
                   <td key={col.label} className={`text-right py-3 ${col.w ?? 'w-14'}`}>{col.render(p)}</td>
                 ))}
@@ -92,15 +98,20 @@ export default function EndSessionScreen({ session, players, onBack, onEdit }) {
         <p className="text-base font-medium text-gray-600 mt-2">
           {dateStr}{session.location ? ` · ${session.location}` : ''}
         </p>
-        {session.player_order?.length === 5 && (
-          <p className="text-xs text-gray-400 mt-1">
+      </div>
+
+      {/* Spelersvolgorde */}
+      {session.player_order?.length === 5 && (
+        <div className="card bg-gray-50 p-4 mb-6">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Spelersvolgorde</p>
+          <p className="text-sm text-gray-700">
             {session.player_order.map((id, i) => {
               const name = players.find((p) => p.id === id)?.name || '?'
-              return `${i + 1}: ${name}`
-            }).join(' · ')}
+              return `Speler ${i + 1}: ${name}`
+            }).join(' | ')}
           </p>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Rankings */}
       {loading ? (
@@ -144,7 +155,12 @@ export default function EndSessionScreen({ session, players, onBack, onEdit }) {
               {potjesRanking.map((p) => (
                 <tr key={p.id} className={`border-b border-gray-100 last:border-b-0 ${p.position === 1 ? 'bg-orange-50 font-bold text-primary' : 'text-gray-700'}`}>
                   <td className="py-3">{p.medal ?? p.position}</td>
-                  <td className="py-3 truncate">{p.name}</td>
+                  <td className="py-3">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <PlayerAvatar player={p} size={24} />
+                    <span className="truncate">{p.name}</span>
+                  </div>
+                </td>
                   <td className="text-right py-3 w-14">{p.wins}</td>
                   <td className="text-right py-3 w-14">{p.played}</td>
                   <td className="text-right py-3 w-12">{p.winPct !== null ? `${p.winPct}%` : '–'}</td>

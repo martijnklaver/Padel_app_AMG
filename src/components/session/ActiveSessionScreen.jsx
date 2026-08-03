@@ -5,6 +5,7 @@ import LiveRanking from './LiveRanking'
 import ScheduleAccordion from './ScheduleAccordion'
 import EditMatchDialog from './EditMatchDialog'
 import ConfirmDialog from '../shared/ConfirmDialog'
+import PlayerAvatar from '../shared/PlayerAvatar'
 
 function NicknameDialog({ session, players, nicknames, onSave, onClose }) {
   const sessionPlayers = players.filter((p) => session.player_ids.includes(p.id))
@@ -27,15 +28,18 @@ function NicknameDialog({ session, players, nicknames, onSave, onClose }) {
         <h3 className="font-bold text-gray-900 text-lg mb-4">Bijnamen aanpassen</h3>
         <div className="space-y-3 mb-6">
           {sessionPlayers.map((p) => (
-            <div key={p.id}>
-              <label className="block text-xs font-medium text-gray-500 mb-1">{p.name}</label>
-              <input
-                type="text"
-                placeholder="Bijnaam (optioneel)"
-                value={local[p.id] || ''}
-                onChange={(e) => setLocal((prev) => ({ ...prev, [p.id]: e.target.value }))}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-              />
+            <div key={p.id} className="flex items-center gap-3">
+              <PlayerAvatar player={p} size={36} />
+              <div className="flex-1">
+                <p className="text-xs font-medium text-gray-600 mb-1">{p.name}</p>
+                <input
+                  type="text"
+                  placeholder="Bijnaam (optioneel)"
+                  value={local[p.id] || ''}
+                  onChange={(e) => setLocal((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+              </div>
             </div>
           ))}
         </div>
