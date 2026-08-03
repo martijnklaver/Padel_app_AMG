@@ -177,6 +177,14 @@ export default function ActiveSessionScreen({ session, players, onSessionEnd, on
             {session.location && (
               <p className="text-xs text-gray-400">📍 {session.location}</p>
             )}
+            {session.player_order?.length === 5 && (
+              <p className="text-xs text-gray-400 mt-0.5">
+                {session.player_order.map((id, i) => {
+                  const name = nicknames?.[id]?.trim() || players.find((p) => p.id === id)?.name || '?'
+                  return `${i + 1}: ${name}`
+                }).join(' · ')}
+              </p>
+            )}
           </div>
         </div>
         <button

@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../supabaseClient'
-import { maxUniqueMatches, generateSchedule } from '../../utils/tournament'
+import { maxUniqueMatches, generateSchedule, generateFivePlayerSchedule } from '../../utils/tournament'
 
 export default function NewSessionModal({ players, onCreated, onClose }) {
   const today = new Date().toISOString().split('T')[0]
@@ -8,6 +8,8 @@ export default function NewSessionModal({ players, onCreated, onClose }) {
   const [date, setDate] = useState(today)
   const [location, setLocation] = useState('')
   const [selectedIds, setSelectedIds] = useState([])
+  const [playerOrder, setPlayerOrder] = useState([])
+  const [prevSessionOrder, setPrevSessionOrder] = useState(null)
   const [nicknames, setNicknames] = useState({})
   const [scoreMode, setScoreMode] = useState('points')
   const [pointsPerMatch, setPointsPerMatch] = useState(16)
@@ -15,19 +17,70 @@ export default function NewSessionModal({ players, onCreated, onClose }) {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
 
+  const rotationAppliedRef = useRef(false)
+
   const maxMatches = maxUniqueMatches(selectedIds.length)
 
   useEffect(() => {
     setTotalMatches(maxMatches)
   }, [maxMatches])
 
+  // Haal de player_order van de meest recente sessie op voor automatische rotatie
+  useEffect(() => {
+    supabase
+      .from('sessions')
+      .select('player_order')
+      .not('player_order', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => setPrevSessionOrder(data?.player_order ?? null))
+  }, [])
+
+  // Pas rotatie toe zodra 5 spelers geselecteerd zijn (eenmalig)
+  useEffect(() => {
+    if (selectedIds.length < 5) {
+      rotationAppliedRef.current = false
+      return
+    }
+    if (selectedIds.length === 5 && !rotationAppliedRef.current && prevSessionOrder?.length === 5) {
+      const currentSorted = [...selectedIds].sort().join()
+      const prevSorted = [...prevSessionOrder].sort().join()
+      if (currentSorted === prevSorted) {
+        setPlayerOrder([...prevSessionOrder.slice(1), prevSessionOrder[0]])
+        rotationAppliedRef.current = true
+      }
+    }
+  }, [selectedIds, prevSessionOrder])
+
   const togglePlayer = (id) => {
     if (selectedIds.includes(id)) {
       setNicknames((prev) => { const n = { ...prev }; delete n[id]; return n })
+      setPlayerOrder((prev) => prev.filter((x) => x !== id))
+    } else {
+      setPlayerOrder((prev) => [...prev, id])
     }
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     )
+  }
+
+  const moveUp = (i) => {
+    if (i === 0) return
+    setPlayerOrder((prev) => {
+      const next = [...prev]
+      ;[next[i - 1], next[i]] = [next[i], next[i - 1]]
+      return next
+    })
+  }
+
+  const moveDown = (i) => {
+    if (i === playerOrder.length - 1) return
+    setPlayerOrder((prev) => {
+      const next = [...prev]
+      ;[next[i], next[i + 1]] = [next[i + 1], next[i]]
+      return next
+    })
   }
 
   const canSubmit =
@@ -50,6 +103,8 @@ export default function NewSessionModal({ players, onCreated, onClose }) {
         Object.entries(nicknames).filter(([id, v]) => selectedIds.includes(id) && v?.trim())
       )
 
+      const isFivePlayers = selectedIds.length === 5
+
       const { data: session, error: sessionErr } = await supabase
         .from('sessions')
         .insert({
@@ -62,14 +117,21 @@ export default function NewSessionModal({ players, onCreated, onClose }) {
           is_active: true,
           is_completed: false,
           nicknames: cleanNicknames,
+          player_order: isFivePlayers ? playerOrder : null,
         })
         .select()
         .single()
 
       if (sessionErr) throw sessionErr
 
-      const selectedPlayers = players.filter((p) => selectedIds.includes(p.id))
-      const { schedule } = generateSchedule(selectedPlayers, totalMatches)
+      let schedule
+      if (isFivePlayers) {
+        const orderedPlayers = playerOrder.map((id) => players.find((p) => p.id === id))
+        ;({ schedule } = generateFivePlayerSchedule(orderedPlayers, totalMatches))
+      } else {
+        const selectedPlayers = players.filter((p) => selectedIds.includes(p.id))
+        ;({ schedule } = generateSchedule(selectedPlayers, totalMatches))
+      }
 
       const scheduleRows = schedule.flatMap(({ round, courts }) =>
         courts.map((court) => ({
@@ -95,6 +157,10 @@ export default function NewSessionModal({ players, onCreated, onClose }) {
   }
 
   const showMatchCount = selectedIds.length >= 4 && selectedIds.length <= 5
+  const isFivePlayers = selectedIds.length === 5
+
+  // Toon hint als automatische rotatie werd toegepast
+  const rotationApplied = rotationAppliedRef.current
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 pb-16 sm:pb-0">
@@ -162,6 +228,47 @@ export default function NewSessionModal({ players, onCreated, onClose }) {
             )}
           </div>
 
+          {/* Spelersvolgorde (alleen bij 5 spelers) */}
+          {isFivePlayers && (
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
+                Spelersvolgorde
+              </label>
+              {rotationApplied && (
+                <p className="text-xs text-primary mb-2">↻ Automatisch geroteerd op basis van vorige sessie</p>
+              )}
+              <div className="space-y-1">
+                {playerOrder.map((id, i) => {
+                  const player = players.find((p) => p.id === id)
+                  return (
+                    <div key={id} className="flex items-center gap-2 py-1.5 px-3 bg-gray-50 rounded-lg">
+                      <span className="text-xs text-gray-400 w-14 shrink-0">Speler {i + 1}</span>
+                      <span className="flex-1 text-sm font-medium text-gray-800">{player?.name}</span>
+                      <div className="flex gap-0.5">
+                        <button
+                          type="button"
+                          onClick={() => moveUp(i)}
+                          disabled={i === 0}
+                          className="w-7 h-7 flex items-center justify-center rounded text-gray-400 hover:text-gray-700 hover:bg-gray-200 disabled:opacity-25 disabled:cursor-not-allowed text-sm"
+                        >
+                          ↑
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveDown(i)}
+                          disabled={i === playerOrder.length - 1}
+                          className="w-7 h-7 flex items-center justify-center rounded text-gray-400 hover:text-gray-700 hover:bg-gray-200 disabled:opacity-25 disabled:cursor-not-allowed text-sm"
+                        >
+                          ↓
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Bijnamen */}
           {selectedIds.length > 0 && (
             <div>
@@ -169,7 +276,7 @@ export default function NewSessionModal({ players, onCreated, onClose }) {
                 Bijnamen (optioneel)
               </label>
               <div className="space-y-2">
-                {selectedIds.map((id) => {
+                {(isFivePlayers ? playerOrder : selectedIds).map((id) => {
                   const player = players.find((p) => p.id === id)
                   return (
                     <div key={id} className="flex items-center gap-3">

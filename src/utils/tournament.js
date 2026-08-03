@@ -1,3 +1,43 @@
+// Vaste optimale rondevolgorde voor 5 spelers (0-geïndexeerde posities)
+const FIVE_PLAYER_ROUNDS = [
+  { t1: [0, 1], t2: [2, 3] },
+  { t1: [0, 1], t2: [2, 4] },
+  { t1: [0, 4], t2: [2, 3] },
+  { t1: [0, 4], t2: [1, 3] },
+  { t1: [2, 1], t2: [3, 4] },
+  { t1: [0, 2], t2: [1, 3] },
+  { t1: [0, 2], t2: [1, 4] },
+  { t1: [0, 3], t2: [2, 4] },
+  { t1: [0, 1], t2: [3, 4] },
+  { t1: [2, 4], t2: [1, 3] },
+  { t1: [0, 3], t2: [2, 1] },
+  { t1: [0, 4], t2: [2, 1] },
+  { t1: [0, 2], t2: [3, 4] },
+  { t1: [0, 3], t2: [1, 4] },
+  { t1: [2, 3], t2: [1, 4] },
+]
+
+export function generateFivePlayerSchedule(players, totalMatches) {
+  const allIndices = [0, 1, 2, 3, 4]
+  const rounds = FIVE_PLAYER_ROUNDS.slice(0, totalMatches)
+
+  const schedule = rounds.map(({ t1, t2 }, i) => {
+    const used = new Set([...t1, ...t2])
+    return {
+      round: i + 1,
+      courts: [{
+        team1_p1: players[t1[0]],
+        team1_p2: players[t1[1]],
+        team2_p1: players[t2[0]],
+        team2_p2: players[t2[1]],
+      }],
+      bench: allIndices.filter(idx => !used.has(idx)).map(idx => players[idx]),
+    }
+  })
+
+  return { schedule, roundsTotal: schedule.length }
+}
+
 // C(N,4) * 3 — exact maximum unique matches for N players
 export function maxUniqueMatches(playerCount) {
   if (playerCount < 4) return 0

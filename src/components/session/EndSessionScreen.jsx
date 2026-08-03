@@ -90,6 +90,14 @@ export default function EndSessionScreen({ session, players, onBack, onEdit }) {
         <p className="text-base font-medium text-gray-600 mt-2">
           {dateStr}{session.location ? ` · ${session.location}` : ''}
         </p>
+        {session.player_order?.length === 5 && (
+          <p className="text-xs text-gray-400 mt-1">
+            {session.player_order.map((id, i) => {
+              const name = players.find((p) => p.id === id)?.name || '?'
+              return `${i + 1}: ${name}`
+            }).join(' · ')}
+          </p>
+        )}
       </div>
 
       {/* Rankings */}
