@@ -82,15 +82,15 @@ export default function InsightsScreen({ players, onBack }) {
       ) : (
         <div className="space-y-4">
           <OverallStatsCard players={players} matches={filteredMatches} />
-          <PerformanceChart players={players} sessions={filteredSessions} matches={filteredMatches} />
-          <BestDuoCard players={players} matches={filteredMatches} />
-          <FairestMatchupCard players={players} matches={filteredMatches} />
           <PopperStatsCard
             players={players}
             sessions={filteredSessions}
             matches={filteredMatches}
             poppers={filteredPoppers}
           />
+          <PerformanceChart players={players} sessions={filteredSessions} matches={filteredMatches} />
+          <BestDuoCard players={players} matches={filteredMatches} />
+          <FairestMatchupCard players={players} matches={filteredMatches} />
           <SessionReplayCard sessions={filteredSessions} players={players} />
         </div>
       )}

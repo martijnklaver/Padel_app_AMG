@@ -44,24 +44,26 @@ function RankingTable({ title, ranking, columns }) {
   )
 }
 
-export default function EndSessionScreen({ session, players, onBack, onEdit }) {
+export default function EndSessionScreen({ session, players, onBack, onEdit, onReactivate }) {
   const [matches, setMatches] = useState([])
+  const [sessionPoppers, setSessionPoppers] = useState([])
   const [loading, setLoading] = useState(true)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
-  const fetchMatches = useCallback(async () => {
-    const { data } = await supabase
-      .from('matches')
-      .select('*')
-      .eq('session_id', session.id)
-    setMatches(data ?? [])
+  const fetchData = useCallback(async () => {
+    const [{ data: matchData }, { data: popperData }] = await Promise.all([
+      supabase.from('matches').select('*').eq('session_id', session.id),
+      supabase.from('poppers').select('*').eq('session_id', session.id),
+    ])
+    setMatches(matchData ?? [])
+    setSessionPoppers(popperData ?? [])
     setLoading(false)
   }, [session.id])
 
   useEffect(() => {
-    fetchMatches()
-  }, [fetchMatches])
+    fetchData()
+  }, [fetchData])
 
   const handleDelete = async () => {
     setDeleting(true)
@@ -88,6 +90,27 @@ export default function EndSessionScreen({ session, players, onBack, onEdit }) {
     computeRankingFromMatches(sessionPlayers, matches),
     (p) => p.winPct
   )
+
+  // Popper ranking for this session
+  const popperRanking = (() => {
+    if (loading || sessionPoppers.length === 0) return []
+    const totals = {}
+    sessionPoppers.forEach(p => { totals[p.player_id] = (totals[p.player_id] || 0) + p.count })
+    const played = {}
+    matches.forEach(m => {
+      [m.team1_p1, m.team1_p2, m.team2_p1, m.team2_p2].forEach(id => {
+        played[id] = (played[id] || 0) + 1
+      })
+    })
+    return sessionPlayers
+      .map(p => ({
+        ...p,
+        total: totals[p.id] || 0,
+        avg: played[p.id] ? ((totals[p.id] || 0) / played[p.id]).toFixed(1) : '0.0',
+      }))
+      .filter(p => p.total > 0)
+      .sort((a, b) => b.total - a.total)
+  })()
 
   return (
     <div className="max-w-3xl mx-auto p-4 pb-8">
@@ -172,8 +195,60 @@ export default function EndSessionScreen({ session, players, onBack, onEdit }) {
         </div>
       )}
 
+      {/* Poppermeister van de dag */}
+      {!loading && popperRanking.length > 0 && (
+        <div className="mt-4 bg-gray-50 rounded-2xl border border-gray-100 p-4">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">🎾 Poppermeister van de dag</p>
+
+          {/* Winnaar */}
+          <div className="flex items-center gap-3 mb-4">
+            <PlayerAvatar player={popperRanking[0]} size={48} />
+            <div>
+              <p className="font-bold text-gray-900 text-sm">{popperRanking[0].name}</p>
+              <p className="text-xs text-gray-500 mb-1">{popperRanking[0].total} poppers</p>
+              <span className="text-[11px] font-semibold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
+                Poppermeister 🏆
+              </span>
+            </div>
+          </div>
+
+          {/* Ranglijst */}
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-gray-400 border-b border-gray-200">
+                <th className="text-left pb-2 font-medium">Naam</th>
+                <th className="text-right pb-2 font-medium">Poppers</th>
+                <th className="text-right pb-2 font-medium whitespace-nowrap">Per potje</th>
+              </tr>
+            </thead>
+            <tbody>
+              {popperRanking.map((p) => (
+                <tr key={p.id} className="border-b border-gray-100 last:border-b-0">
+                  <td className="py-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <PlayerAvatar player={p} size={18} />
+                      <span className="text-gray-700">{p.name}</span>
+                    </div>
+                  </td>
+                  <td className="text-right py-1.5 text-gray-700">{p.total}</td>
+                  <td className="text-right py-1.5 text-gray-500">{p.avg}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       {/* Buttons */}
       <div className="mt-8 space-y-3">
+        {onReactivate && (
+          <button
+            onClick={() => onReactivate(session)}
+            className="btn-secondary w-full"
+          >
+            🔄 Sessie heractiveren
+          </button>
+        )}
         <button onClick={onBack} className="btn-primary w-full">
           Terug naar home
         </button>

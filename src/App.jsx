@@ -87,6 +87,13 @@ export default function App() {
     setActiveTab('home')
   }
 
+  const handleReactivate = async (session) => {
+    await supabase.from('sessions').update({ is_active: true, is_completed: false }).eq('id', session.id)
+    setActiveSession({ ...session, is_active: true, is_completed: false })
+    setEndedSession(null)
+    setActiveTab('active')
+  }
+
   if (loading) return <LoadingSpinner />
 
   const hasActiveContent = !!(activeSession || endedSession || editedSession)
@@ -140,6 +147,7 @@ export default function App() {
             players={players}
             onBack={handleBackToHome}
             onEdit={handleEditSession}
+            onReactivate={handleReactivate}
           />
         )
       }

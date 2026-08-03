@@ -194,9 +194,9 @@ export default function ActiveSessionScreen({ session, players, onSessionEnd, on
     setStopping(true)
     await supabase
       .from('sessions')
-      .update({ is_active: false })
+      .update({ is_active: false, is_completed: true })
       .eq('id', session.id)
-    onSessionEnd({ ...session, is_active: false, is_completed: false })
+    onSessionEnd({ ...session, is_active: false, is_completed: true })
   }
 
   const currentRows = schedule.filter((r) => r.is_current)
