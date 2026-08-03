@@ -1,8 +1,11 @@
-import { computeSessionRanking } from '../../utils/tournament'
+import { computeSessionRanking, assignPositions } from '../../utils/tournament'
 
 export default function LiveRanking({ session, players, matches, nicknames }) {
-  const ranking = computeSessionRanking(session, players, matches)
   const isPoints = session.score_mode === 'points'
+  const ranking = assignPositions(
+    computeSessionRanking(session, players, matches),
+    (p) => isPoints ? p.pct : p.winPct
+  )
 
   return (
     <div className="card mt-3">
@@ -27,8 +30,8 @@ export default function LiveRanking({ session, players, matches, nicknames }) {
             )}
           </tr>
         </thead>
-        <tbody>
-          {ranking.map((p, i) => {
+        <tbody className="divide-y divide-gray-100">
+          {ranking.map((p) => {
             const pct = isPoints ? p.pct : p.winPct
             const val1 = isPoints ? p.pointsWon : p.wins
             const val2 = isPoints ? p.pointsPlayed : p.played
@@ -36,9 +39,9 @@ export default function LiveRanking({ session, players, matches, nicknames }) {
             return (
               <tr
                 key={p.id}
-                className={i === 0 && !noData ? 'font-semibold text-primary' : 'text-gray-700'}
+                className={p.position === 1 && !noData ? 'bg-orange-50 font-semibold text-primary' : 'text-gray-700'}
               >
-                <td className="py-1.5">{i + 1}</td>
+                <td className="py-1.5">{noData ? p.position : (p.medal ?? p.position)}</td>
                 <td className="py-1.5">{nicknames?.[p.id]?.trim() || p.name}</td>
                 <td className="text-right py-1.5">{noData ? '–' : val1}</td>
                 <td className="text-right py-1.5">{noData ? '–' : val2}</td>

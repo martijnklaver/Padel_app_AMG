@@ -174,6 +174,15 @@ export function computePointsRankingFromMatches(players, matches) {
     })
 }
 
+export function assignPositions(ranking, getScore) {
+  let pos = 1
+  return ranking.map((entry, i, arr) => {
+    if (i > 0 && getScore(arr[i - 1]) !== getScore(entry)) pos = i + 1
+    const medal = pos === 1 ? '🥇' : pos === 2 ? '🥈' : pos === 3 ? '🥉' : null
+    return { ...entry, position: pos, medal }
+  })
+}
+
 export function computeSessionRanking(session, players, matches) {
   const sessionPlayers = players.filter((p) => session.player_ids.includes(p.id))
   const sessionMatches = matches.filter((m) => m.session_id === session.id)

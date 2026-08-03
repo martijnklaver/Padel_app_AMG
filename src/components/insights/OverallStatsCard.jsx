@@ -1,9 +1,10 @@
-import { computeRankingFromMatches } from '../../utils/tournament'
-
-const MEDALS = ['🥇', '🥈', '🥉']
+import { computeRankingFromMatches, assignPositions } from '../../utils/tournament'
 
 export default function OverallStatsCard({ players, matches }) {
-  const ranking = computeRankingFromMatches(players, matches).filter((p) => p.played > 0)
+  const ranking = assignPositions(
+    computeRankingFromMatches(players, matches).filter((p) => p.played > 0),
+    (p) => p.winPct
+  )
 
   if (ranking.length === 0) {
     return (
@@ -28,12 +29,12 @@ export default function OverallStatsCard({ players, matches }) {
             <th className="text-right pb-2 font-medium">Win%</th>
           </tr>
         </thead>
-        <tbody>
-          {ranking.map((p, i) => {
+        <tbody className="divide-y divide-gray-100">
+          {ranking.map((p) => {
             const losses = p.played - Math.round(p.wins)
             return (
-              <tr key={p.id} className={i === 0 ? 'font-bold text-primary' : 'text-gray-700'}>
-                <td className="py-2">{MEDALS[i] ?? i + 1}</td>
+              <tr key={p.id} className={p.position === 1 ? 'bg-orange-50 font-bold text-primary' : 'text-gray-700'}>
+                <td className="py-2">{p.medal ?? p.position}</td>
                 <td className="py-2">{p.name}</td>
                 <td className="text-right py-2">{p.played}</td>
                 <td className="text-right py-2">{Math.round(p.wins)}</td>

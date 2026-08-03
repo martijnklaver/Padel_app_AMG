@@ -1,7 +1,40 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../supabaseClient'
-import { computeSessionRanking, computeRankingFromMatches } from '../../utils/tournament'
+import { computeSessionRanking, computeRankingFromMatches, assignPositions } from '../../utils/tournament'
 import ConfirmDialog from '../shared/ConfirmDialog'
+
+function RankingTable({ title, ranking, columns }) {
+  return (
+    <div className="card flex-1 min-w-0 bg-gray-50 p-5">
+      <h3 className="font-semibold text-gray-500 mb-4 text-xs uppercase tracking-wide">{title}</h3>
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-gray-400 text-xs border-b border-gray-100">
+            <th className="text-left pb-2 font-medium">#</th>
+            <th className="text-left pb-2 font-medium">Naam</th>
+            {columns.map((col) => (
+              <th key={col.label} className="text-right pb-2 font-medium">{col.label}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100">
+          {ranking.map((p) => (
+            <tr
+              key={p.id}
+              className={p.position === 1 ? 'bg-orange-50 font-bold text-primary' : 'text-gray-700'}
+            >
+              <td className="py-2.5 pr-1">{p.medal ?? p.position}</td>
+              <td className="py-2.5">{p.name}</td>
+              {columns.map((col) => (
+                <td key={col.label} className="text-right py-2.5">{col.render(p)}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
 
 export default function EndSessionScreen({ session, players, onBack, onEdit }) {
   const [matches, setMatches] = useState([])
@@ -38,82 +71,54 @@ export default function EndSessionScreen({ session, players, onBack, onEdit }) {
 
   const sessionPlayers = players.filter((p) => session.player_ids.includes(p.id))
   const isPoints = session.score_mode === 'points'
-  const medals = ['🏆', '🥈', '🥉']
 
-  const pointsRanking = loading ? [] : computeSessionRanking(session, players, matches)
-  const potjesRanking = loading ? [] : computeRankingFromMatches(sessionPlayers, matches)
+  const pointsRanking = loading ? [] : assignPositions(
+    computeSessionRanking(session, players, matches),
+    (p) => p.pct
+  )
+  const potjesRanking = loading ? [] : assignPositions(
+    computeRankingFromMatches(sessionPlayers, matches),
+    (p) => p.winPct
+  )
 
   return (
     <div className="max-w-lg mx-auto p-4 pb-8">
       {/* Header */}
-      <div className="text-center pt-4 mb-6">
-        <div className="text-4xl mb-2">🎾</div>
+      <div className="text-center pt-4 mb-8">
+        <div className="text-4xl mb-3">🎾</div>
         <h2 className="text-xl font-bold text-gray-900">Sessie afgerond!</h2>
-        <p className="text-sm text-gray-500 mt-1">{dateStr}</p>
-        <p className="text-xs text-gray-400 mt-0.5">{sessionPlayers.map((p) => p.name).join(', ')}</p>
+        <p className="text-base font-medium text-gray-600 mt-2">
+          {dateStr}{session.location ? ` · ${session.location}` : ''}
+        </p>
       </div>
 
+      {/* Rankings */}
       {loading ? (
         <p className="text-center text-gray-400 py-8">Laden...</p>
       ) : isPoints ? (
         <div className="flex flex-col md:flex-row gap-4">
-          {/* Punten ranking */}
-          <div className="card flex-1 min-w-0">
-            <h3 className="font-semibold text-gray-700 mb-3 text-xs uppercase tracking-wide">Punten ranking</h3>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-gray-400 text-xs border-b border-gray-100">
-                  <th className="text-left pb-2 font-medium">#</th>
-                  <th className="text-left pb-2 font-medium">Naam</th>
-                  <th className="text-right pb-2 font-medium">Pnt. gew.</th>
-                  <th className="text-right pb-2 font-medium">Pnt. gesp.</th>
-                  <th className="text-right pb-2 font-medium">%</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pointsRanking.map((p, i) => (
-                  <tr key={p.id} className={i === 0 ? 'font-bold text-primary' : 'text-gray-700'}>
-                    <td className="py-2">{medals[i] ?? i + 1}</td>
-                    <td className="py-2">{p.name}</td>
-                    <td className="text-right py-2">{p.pointsWon}</td>
-                    <td className="text-right py-2">{p.pointsPlayed}</td>
-                    <td className="text-right py-2">{p.pct !== null ? `${p.pct}%` : '–'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Potjes ranking */}
-          <div className="card flex-1 min-w-0">
-            <h3 className="font-semibold text-gray-700 mb-3 text-xs uppercase tracking-wide">Potjes ranking</h3>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-gray-400 text-xs border-b border-gray-100">
-                  <th className="text-left pb-2 font-medium">#</th>
-                  <th className="text-left pb-2 font-medium">Naam</th>
-                  <th className="text-right pb-2 font-medium">Pot. gew.</th>
-                  <th className="text-right pb-2 font-medium">Pot. gesp.</th>
-                  <th className="text-right pb-2 font-medium">Win%</th>
-                </tr>
-              </thead>
-              <tbody>
-                {potjesRanking.map((p, i) => (
-                  <tr key={p.id} className={i === 0 ? 'font-bold text-primary' : 'text-gray-700'}>
-                    <td className="py-2">{medals[i] ?? i + 1}</td>
-                    <td className="py-2">{p.name}</td>
-                    <td className="text-right py-2">{p.wins}</td>
-                    <td className="text-right py-2">{p.played}</td>
-                    <td className="text-right py-2">{p.winPct !== null ? `${p.winPct}%` : '–'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <RankingTable
+            title="Punten ranking"
+            ranking={pointsRanking}
+            columns={[
+              { label: 'Pnt. gew.', render: (p) => p.pointsWon },
+              { label: 'Pnt. gesp.', render: (p) => p.pointsPlayed },
+              { label: '%', render: (p) => p.pct !== null ? `${p.pct}%` : '–' },
+            ]}
+          />
+          <RankingTable
+            title="Potjes ranking"
+            ranking={potjesRanking}
+            columns={[
+              { label: 'Pot. gew.', render: (p) => p.wins },
+              { label: 'Pot. gesp.', render: (p) => p.played },
+              { label: 'Win%', render: (p) => p.winPct !== null ? `${p.winPct}%` : '–' },
+            ]}
+          />
         </div>
       ) : (
-        <div className="card">
-          <h3 className="font-semibold text-gray-700 mb-3">Eindstand</h3>
+        <div className="card bg-gray-50 p-5">
+          <h3 className="font-semibold text-gray-500 mb-4 text-xs uppercase tracking-wide">Eindstand</h3>
           <table className="w-full text-sm">
             <thead>
               <tr className="text-gray-400 text-xs border-b border-gray-100">
@@ -124,14 +129,14 @@ export default function EndSessionScreen({ session, players, onBack, onEdit }) {
                 <th className="text-right pb-2 font-medium">Win%</th>
               </tr>
             </thead>
-            <tbody>
-              {potjesRanking.map((p, i) => (
-                <tr key={p.id} className={i === 0 ? 'font-bold text-primary' : 'text-gray-700'}>
-                  <td className="py-2">{medals[i] ?? i + 1}</td>
-                  <td className="py-2">{p.name}</td>
-                  <td className="text-right py-2">{p.wins}</td>
-                  <td className="text-right py-2">{p.played}</td>
-                  <td className="text-right py-2">{p.winPct !== null ? `${p.winPct}%` : '–'}</td>
+            <tbody className="divide-y divide-gray-100">
+              {potjesRanking.map((p) => (
+                <tr key={p.id} className={p.position === 1 ? 'bg-orange-50 font-bold text-primary' : 'text-gray-700'}>
+                  <td className="py-2.5 pr-1">{p.medal ?? p.position}</td>
+                  <td className="py-2.5">{p.name}</td>
+                  <td className="text-right py-2.5">{p.wins}</td>
+                  <td className="text-right py-2.5">{p.played}</td>
+                  <td className="text-right py-2.5">{p.winPct !== null ? `${p.winPct}%` : '–'}</td>
                 </tr>
               ))}
             </tbody>
@@ -139,26 +144,28 @@ export default function EndSessionScreen({ session, players, onBack, onEdit }) {
         </div>
       )}
 
-      <div className="flex gap-3 mt-4">
-        {onEdit && (
-          <button
-            onClick={() => onEdit(session)}
-            className="flex-1 btn-secondary flex items-center justify-center gap-2"
-          >
-            ✏️ Bewerken
-          </button>
-        )}
-        <button
-          onClick={() => setDeleteConfirm(true)}
-          className="flex-1 font-semibold px-4 py-2 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition-colors"
-        >
-          🗑️ Verwijderen
+      {/* Buttons */}
+      <div className="mt-8 space-y-3">
+        <button onClick={onBack} className="btn-primary w-full">
+          Terug naar home
         </button>
+        <div className="flex gap-6 justify-center pt-1">
+          {onEdit && (
+            <button
+              onClick={() => onEdit(session)}
+              className="text-sm text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              ✏️ Bewerken
+            </button>
+          )}
+          <button
+            onClick={() => setDeleteConfirm(true)}
+            className="text-sm text-red-400 hover:text-red-600 transition-colors"
+          >
+            🗑️ Verwijderen
+          </button>
+        </div>
       </div>
-
-      <button onClick={onBack} className="btn-secondary w-full mt-3">
-        Terug naar home
-      </button>
 
       {deleteConfirm && (
         <ConfirmDialog
