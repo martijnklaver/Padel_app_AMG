@@ -23,6 +23,13 @@ export default function App() {
       supabase.from('players').select('*').order('name'),
       supabase.from('sessions').select('*').eq('is_active', true).limit(1).maybeSingle(),
     ])
+
+    // Diagnostiek: log avatar status en storage bucket
+    console.log('[avatar] players:', playersData?.map(p => ({ id: p.id, name: p.name, avatar_url: p.avatar_url })))
+    supabase.storage.from('avatars').list().then(({ data: files, error }) => {
+      console.log('[avatar] storage bucket bestanden:', files, 'error:', error)
+    })
+
     setPlayers(playersData ?? [])
     setActiveSession(activeData ?? null)
     if (activeData) setActiveTab('active')

@@ -1,8 +1,13 @@
+// Eenmalige timestamp per sessie — voorkomt browser-cache van oude foto's
+const SESSION_STAMP = Date.now()
+
 export default function PlayerAvatar({ player, size = 32 }) {
   if (player?.avatar_url) {
+    // Strip eventuele bestaande ?t= en voeg versie van deze sessie toe
+    const base = player.avatar_url.split('?')[0]
     return (
       <img
-        src={player.avatar_url}
+        src={`${base}?t=${SESSION_STAMP}`}
         alt={player.name}
         className="rounded-full object-cover shrink-0"
         style={{ width: size, height: size }}
