@@ -69,9 +69,14 @@ function ScoreRow({ row, session, players, nicknames, onSaved }) {
         <button
           onClick={handleSave}
           disabled={!canSave || saving}
-          className="shrink-0 text-xs text-white bg-primary rounded-lg px-2 py-1.5 hover:bg-primary-hover disabled:opacity-40"
+          className="shrink-0 text-xs text-white bg-primary rounded-lg px-2 py-1.5 hover:bg-primary-hover disabled:opacity-40 flex items-center justify-center min-w-[52px]"
         >
-          {saving ? '...' : 'Opslaan'}
+          {saving ? (
+            <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+          ) : 'Opslaan'}
         </button>
       </div>
     )
@@ -100,9 +105,14 @@ function ScoreRow({ row, session, players, nicknames, onSaved }) {
       <button
         onClick={handleSave}
         disabled={!canSave || saving}
-        className="w-full text-xs text-white bg-primary rounded-lg py-1.5 hover:bg-primary-hover disabled:opacity-40"
+        className="w-full text-xs text-white bg-primary rounded-lg py-1.5 hover:bg-primary-hover disabled:opacity-40 flex items-center justify-center"
       >
-        {saving ? 'Opslaan...' : 'Opslaan'}
+        {saving ? (
+          <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+        ) : 'Opslaan'}
       </button>
     </div>
   )
@@ -195,9 +205,14 @@ function InlineEditForm({ match, row, session, players, nicknames, onSaved, onCa
             <button
               onClick={handleSave}
               disabled={saving || s1 === '' || s2 === ''}
-              className="text-xs text-white bg-primary rounded-lg px-2 py-1.5 hover:bg-primary-hover disabled:opacity-40"
+              className="text-xs text-white bg-primary rounded-lg px-2 py-1.5 hover:bg-primary-hover disabled:opacity-40 flex items-center justify-center min-w-[52px]"
             >
-              {saving ? '...' : 'Opslaan'}
+              {saving ? (
+                <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+              ) : 'Opslaan'}
             </button>
           </div>
         </div>
@@ -240,9 +255,14 @@ function InlineEditForm({ match, row, session, players, nicknames, onSaved, onCa
         <button
           onClick={handleSave}
           disabled={saving || !selected}
-          className="text-xs text-white bg-primary rounded-lg px-2 py-1.5 hover:bg-primary-hover disabled:opacity-40"
+          className="text-xs text-white bg-primary rounded-lg px-2 py-1.5 hover:bg-primary-hover disabled:opacity-40 flex items-center justify-center min-w-[52px]"
         >
-          {saving ? '...' : 'Opslaan'}
+          {saving ? (
+            <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+          ) : 'Opslaan'}
         </button>
       </div>
     </div>
