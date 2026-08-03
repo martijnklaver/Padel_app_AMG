@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Paperclip } from 'lucide-react'
 import { supabase, uploadPlayerAvatar } from '../../supabaseClient'
 import PlayerAvatar from '../shared/PlayerAvatar'
 
@@ -55,48 +56,41 @@ export default function SettingsScreen({ players, onPlayersUpdated }) {
   }
 
   return (
-    <div className="max-w-lg mx-auto p-4">
-      <h2 className="text-xl font-bold text-gray-900 mb-1 pt-2">Instellingen</h2>
+    <div className="w-full max-w-lg mx-auto p-4 pb-24 overflow-x-hidden">
+      <h2 className="text-xl font-bold text-gray-900 mb-1 pt-2">Spelerbeheer</h2>
       <p className="text-sm text-gray-500 mb-6">Spelers beheren</p>
 
-      <div className="card divide-y divide-gray-100">
+      <div className="space-y-3 w-full">
         {players.map((player) => (
-          <div key={player.id} className="py-4 first:pt-0 last:pb-0">
-            {/* Name row */}
-            <div className="flex items-center gap-3 mb-3">
-              <PlayerAvatar player={player} size={40} />
+          <div key={player.id} className="card w-full overflow-hidden">
+            {/* Avatar + naam */}
+            <div className="flex items-center gap-3 mb-3 w-full">
+              <PlayerAvatar player={player} size={48} />
               <input
                 type="text"
                 value={names[player.id]}
                 onChange={(e) => setNames((n) => ({ ...n, [player.id]: e.target.value }))}
                 onKeyDown={(e) => e.key === 'Enter' && handleSave(player)}
-                className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                className="flex-1 min-w-0 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
-              <button
-                onClick={() => handleSave(player)}
-                disabled={saving[player.id] || names[player.id].trim() === player.name}
-                className="btn-primary text-sm shrink-0 disabled:opacity-40"
-              >
-                {saving[player.id] ? '...' : saved[player.id] ? '✓' : 'Opslaan'}
-              </button>
             </div>
 
-            {/* Photo row */}
-            <div className="ml-[52px] flex flex-wrap items-center gap-2">
-              {uploading[player.id] ? (
-                <span className="text-xs text-gray-400">Uploaden...</span>
-              ) : (
-                <>
-                  <label className="text-xs text-gray-500 hover:text-primary cursor-pointer border border-gray-200 rounded-lg px-2.5 py-1.5 hover:border-primary/40 transition-colors">
-                    📷 Foto uploaden
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => { handleAvatarUpload(player, e.target.files[0]); e.target.value = '' }}
-                    />
-                  </label>
-                  <label className="text-xs text-gray-500 hover:text-primary cursor-pointer border border-gray-200 rounded-lg px-2.5 py-1.5 hover:border-primary/40 transition-colors">
+            {/* Opslaan knop */}
+            <button
+              onClick={() => handleSave(player)}
+              disabled={saving[player.id] || names[player.id].trim() === player.name}
+              className="btn-primary text-sm w-full mb-3 disabled:opacity-40"
+            >
+              {saving[player.id] ? '...' : saved[player.id] ? '✓ Opgeslagen' : 'Opslaan'}
+            </button>
+
+            {/* Foto knoppen */}
+            {uploading[player.id] ? (
+              <p className="text-xs text-gray-400">Uploaden...</p>
+            ) : (
+              <div className="flex flex-col gap-2 w-full">
+                <div className="flex gap-2 w-full">
+                  <label className="flex-1 flex items-center justify-center gap-1.5 text-xs text-gray-500 hover:text-primary cursor-pointer border border-gray-200 rounded-lg px-2.5 py-2 hover:border-primary/40 transition-colors">
                     📸 Foto maken
                     <input
                       type="file"
@@ -106,23 +100,34 @@ export default function SettingsScreen({ players, onPlayersUpdated }) {
                       onChange={(e) => { handleAvatarUpload(player, e.target.files[0]); e.target.value = '' }}
                     />
                   </label>
-                  {player.avatar_url && (
-                    <button
-                      onClick={() => handleAvatarDelete(player)}
-                      className="text-xs text-red-400 hover:text-red-600 transition-colors"
-                    >
-                      Verwijderen
-                    </button>
-                  )}
-                </>
-              )}
-              {avatarSaved[player.id] && (
-                <span className="text-xs text-green-600 font-medium">Foto opgeslagen ✓</span>
-              )}
-              {avatarError[player.id] && (
-                <span className="text-xs text-red-500">{avatarError[player.id]}</span>
-              )}
-            </div>
+                  <label className="flex-1 flex items-center justify-center gap-1.5 text-xs text-gray-500 hover:text-primary cursor-pointer border border-gray-200 rounded-lg px-2.5 py-2 hover:border-primary/40 transition-colors">
+                    <Paperclip size={16} />
+                    Foto uploaden
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => { handleAvatarUpload(player, e.target.files[0]); e.target.value = '' }}
+                    />
+                  </label>
+                </div>
+                {player.avatar_url && (
+                  <button
+                    onClick={() => handleAvatarDelete(player)}
+                    className="text-xs text-red-400 hover:text-red-600 transition-colors text-left"
+                  >
+                    Foto verwijderen
+                  </button>
+                )}
+              </div>
+            )}
+
+            {avatarSaved[player.id] && (
+              <p className="text-xs text-green-600 font-medium mt-2">Foto opgeslagen ✓</p>
+            )}
+            {avatarError[player.id] && (
+              <p className="text-xs text-red-500 mt-2">{avatarError[player.id]}</p>
+            )}
           </div>
         ))}
       </div>
