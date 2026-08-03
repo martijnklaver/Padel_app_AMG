@@ -9,7 +9,7 @@ export default function PopperSection({ playerIds, players, nicknames, counts, o
 
   return (
     <div className="mt-4 pt-3 border-t border-gray-100">
-      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Poppers</p>
+      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Poppers 🎾</p>
       <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
         {playerIds.map(id => (
           <div key={id} className="flex items-center gap-1.5">

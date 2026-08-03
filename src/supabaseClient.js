@@ -57,7 +57,9 @@ export async function uploadPlayerAvatar(playerId, file) {
 }
 
 export async function saveMatchPoppers(matchId, sessionId, matchRow, counts) {
-  await supabase.from('poppers').delete().eq('match_id', matchId)
+  const { error: delErr } = await supabase.from('poppers').delete().eq('match_id', matchId)
+  if (delErr) console.error('[poppers] delete error:', delErr)
+
   const team1 = [matchRow.team1_p1, matchRow.team1_p2]
   const team2 = [matchRow.team2_p1, matchRow.team2_p2]
   const rows = [...team1, ...team2]
@@ -70,6 +72,7 @@ export async function saveMatchPoppers(matchId, sessionId, matchRow, counts) {
       count: counts[id],
     }))
   if (rows.length > 0) {
-    await supabase.from('poppers').insert(rows)
+    const { error: insErr } = await supabase.from('poppers').insert(rows)
+    if (insErr) console.error('[poppers] insert error:', insErr)
   }
 }
