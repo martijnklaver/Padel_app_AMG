@@ -1,5 +1,6 @@
-import { useState } from 'react'
-import { supabase } from '../../supabaseClient'
+import { useState, useEffect } from 'react'
+import { supabase, saveMatchPoppers } from '../../supabaseClient'
+import PopperSection from './PopperSection'
 
 export default function EditMatchDialog({ match, session, players, nicknames, onSaved, onClose }) {
   const isPoints = session.score_mode === 'points'
@@ -9,6 +10,17 @@ export default function EditMatchDialog({ match, session, players, nicknames, on
   const [selected, setSelected] = useState(match.winner ?? null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
+  const [poppers, setPoppers] = useState({})
+
+  const matchPlayerIds = [match.team1_p1, match.team1_p2, match.team2_p1, match.team2_p2]
+
+  useEffect(() => {
+    supabase.from('poppers').select('*').eq('match_id', match.id).then(({ data }) => {
+      const c = {}
+      ;(data ?? []).forEach(p => { c[p.player_id] = p.count })
+      setPoppers(c)
+    })
+  }, [match.id])
 
   const playerName = (id) => {
     const nick = nicknames?.[id]
@@ -42,15 +54,10 @@ export default function EditMatchDialog({ match, session, players, nicknames, on
     try {
       const { error: mErr } = await supabase
         .from('matches')
-        .update({
-          score_team1: score1,
-          score_team2: score2,
-          winner,
-          normalized_score_team1: norm1,
-          normalized_score_team2: norm2,
-        })
+        .update({ score_team1: score1, score_team2: score2, winner, normalized_score_team1: norm1, normalized_score_team2: norm2 })
         .eq('id', match.id)
       if (mErr) throw mErr
+      await saveMatchPoppers(match.id, session.id, match, poppers)
       onSaved()
     } catch (e) {
       setError(e.message)
@@ -103,9 +110,17 @@ export default function EditMatchDialog({ match, session, players, nicknames, on
           </div>
         )}
 
-        {error && <p className="text-red-500 text-xs mb-3">{error}</p>}
+        <PopperSection
+          playerIds={matchPlayerIds}
+          players={players}
+          nicknames={nicknames}
+          counts={poppers}
+          onChange={setPoppers}
+        />
 
-        <div className="flex gap-3">
+        {error && <p className="text-red-500 text-xs mt-3">{error}</p>}
+
+        <div className="flex gap-3 mt-4">
           <button onClick={onClose} className="flex-1 btn-secondary">Annuleren</button>
           <button onClick={handleSave} disabled={saving} className="flex-1 btn-primary">
             {saving ? 'Opslaan...' : 'Opslaan'}

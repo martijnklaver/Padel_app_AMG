@@ -5,6 +5,7 @@ import PerformanceChart from './PerformanceChart'
 import BestDuoCard from './BestDuoCard'
 import FairestMatchupCard from './FairestMatchupCard'
 import SessionReplayCard from './SessionReplayCard'
+import PopperStatsCard from './PopperStatsCard'
 
 const LIMIT_OPTIONS = [
   { label: 'Alle sessies', value: null },
@@ -16,16 +17,19 @@ const LIMIT_OPTIONS = [
 export default function InsightsScreen({ players, onBack }) {
   const [matches, setMatches] = useState([])
   const [sessions, setSessions] = useState([])
+  const [poppers, setPoppers] = useState([])
   const [loading, setLoading] = useState(true)
   const [sessionLimit, setSessionLimit] = useState(null)
 
   const fetchData = useCallback(async () => {
-    const [{ data: allMatches }, { data: allSessions }] = await Promise.all([
+    const [{ data: allMatches }, { data: allSessions }, { data: allPoppers }] = await Promise.all([
       supabase.from('matches').select('*').eq('is_completed', true),
       supabase.from('sessions').select('*').order('date', { ascending: false }),
+      supabase.from('poppers').select('*'),
     ])
     setMatches(allMatches ?? [])
     setSessions(allSessions ?? [])
+    setPoppers(allPoppers ?? [])
     setLoading(false)
   }, [])
 
@@ -33,10 +37,10 @@ export default function InsightsScreen({ players, onBack }) {
     fetchData()
   }, [fetchData])
 
-  // sessions is ordered DESC (newest first); slice gives the most recent N
   const filteredSessions = sessionLimit ? sessions.slice(0, sessionLimit) : sessions
   const filteredSessionIds = new Set(filteredSessions.map((s) => s.id))
   const filteredMatches = matches.filter((m) => filteredSessionIds.has(m.session_id))
+  const filteredPoppers = poppers.filter((p) => filteredSessionIds.has(p.session_id))
 
   return (
     <div className="max-w-lg mx-auto p-4">
@@ -81,6 +85,12 @@ export default function InsightsScreen({ players, onBack }) {
           <PerformanceChart players={players} sessions={filteredSessions} matches={filteredMatches} />
           <BestDuoCard players={players} matches={filteredMatches} />
           <FairestMatchupCard players={players} matches={filteredMatches} />
+          <PopperStatsCard
+            players={players}
+            sessions={filteredSessions}
+            matches={filteredMatches}
+            poppers={filteredPoppers}
+          />
           <SessionReplayCard sessions={filteredSessions} players={players} />
         </div>
       )}

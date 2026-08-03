@@ -1,5 +1,6 @@
-import { useState } from 'react'
-import { supabase } from '../../supabaseClient'
+import { useState, useEffect } from 'react'
+import { supabase, saveMatchPoppers } from '../../supabaseClient'
+import PopperSection from './PopperSection'
 
 function ScoreRow({ row, session, players, nicknames, onSaved }) {
   const isPoints = session.score_mode === 'points'
@@ -7,6 +8,7 @@ function ScoreRow({ row, session, players, nicknames, onSaved }) {
   const [s2, setS2] = useState('')
   const [winner, setWinner] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [poppers, setPoppers] = useState({})
 
   const playerName = (id) => {
     const nick = nicknames?.[id]
@@ -14,6 +16,7 @@ function ScoreRow({ row, session, players, nicknames, onSaved }) {
   }
   const t1 = `${playerName(row.team1_p1)} & ${playerName(row.team1_p2)}`
   const t2 = `${playerName(row.team2_p1)} & ${playerName(row.team2_p2)}`
+  const matchPlayerIds = [row.team1_p1, row.team1_p2, row.team2_p1, row.team2_p2]
 
   const canSave = isPoints ? (s1 !== '' && s2 !== '') : winner !== null
 
@@ -27,7 +30,7 @@ function ScoreRow({ row, session, players, nicknames, onSaved }) {
     const norm1 = w === 1 ? 1.0 : w === 2 ? 0.0 : 0.5
     const norm2 = w === 2 ? 1.0 : w === 1 ? 0.0 : 0.5
 
-    const { error: mErr } = await supabase.from('matches').insert({
+    const { data: match, error: mErr } = await supabase.from('matches').insert({
       session_id: session.id,
       round_number: row.round_number,
       team1_p1: row.team1_p1, team1_p2: row.team1_p2,
@@ -37,10 +40,11 @@ function ScoreRow({ row, session, players, nicknames, onSaved }) {
       normalized_score_team1: norm1,
       normalized_score_team2: norm2,
       is_completed: true,
-    })
+    }).select().single()
 
-    if (!mErr) {
+    if (!mErr && match) {
       await supabase.from('schedule').update({ is_completed: true }).eq('id', row.id)
+      await saveMatchPoppers(match.id, session.id, row, poppers)
       onSaved()
     }
     setSaving(false)
@@ -48,36 +52,45 @@ function ScoreRow({ row, session, players, nicknames, onSaved }) {
 
   if (isPoints) {
     return (
-      <div className="mt-2 flex items-center gap-2">
-        <span className="flex-1 text-right text-xs font-medium text-gray-600 leading-tight">{t1}</span>
-        <div className="flex items-center gap-1 shrink-0">
-          <input
-            type="number" min="0" value={s1} onChange={(e) => setS1(e.target.value)}
-            placeholder="0"
-            className="w-10 h-8 text-sm font-bold text-center border border-gray-200 rounded-lg focus:outline-none focus:border-primary"
-            style={{ MozAppearance: 'textfield', appearance: 'textfield' }}
-          />
-          <span className="text-gray-300 text-xs">–</span>
-          <input
-            type="number" min="0" value={s2} onChange={(e) => setS2(e.target.value)}
-            placeholder="0"
-            className="w-10 h-8 text-sm font-bold text-center border border-gray-200 rounded-lg focus:outline-none focus:border-primary"
-            style={{ MozAppearance: 'textfield', appearance: 'textfield' }}
-          />
+      <div className="mt-2">
+        <div className="flex items-center gap-2">
+          <span className="flex-1 text-right text-xs font-medium text-gray-600 leading-tight">{t1}</span>
+          <div className="flex items-center gap-1 shrink-0">
+            <input
+              type="number" min="0" value={s1} onChange={(e) => setS1(e.target.value)}
+              placeholder="0"
+              className="w-10 h-8 text-sm font-bold text-center border border-gray-200 rounded-lg focus:outline-none focus:border-primary"
+              style={{ MozAppearance: 'textfield', appearance: 'textfield' }}
+            />
+            <span className="text-gray-300 text-xs">–</span>
+            <input
+              type="number" min="0" value={s2} onChange={(e) => setS2(e.target.value)}
+              placeholder="0"
+              className="w-10 h-8 text-sm font-bold text-center border border-gray-200 rounded-lg focus:outline-none focus:border-primary"
+              style={{ MozAppearance: 'textfield', appearance: 'textfield' }}
+            />
+          </div>
+          <span className="flex-1 text-xs font-medium text-gray-600 leading-tight">{t2}</span>
+          <button
+            onClick={handleSave}
+            disabled={!canSave || saving}
+            className="shrink-0 text-xs text-white bg-primary rounded-lg px-2 py-1.5 hover:bg-primary-hover disabled:opacity-40 flex items-center justify-center min-w-[52px]"
+          >
+            {saving ? (
+              <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            ) : 'Opslaan'}
+          </button>
         </div>
-        <span className="flex-1 text-xs font-medium text-gray-600 leading-tight">{t2}</span>
-        <button
-          onClick={handleSave}
-          disabled={!canSave || saving}
-          className="shrink-0 text-xs text-white bg-primary rounded-lg px-2 py-1.5 hover:bg-primary-hover disabled:opacity-40 flex items-center justify-center min-w-[52px]"
-        >
-          {saving ? (
-            <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
-          ) : 'Opslaan'}
-        </button>
+        <PopperSection
+          playerIds={matchPlayerIds}
+          players={players}
+          nicknames={nicknames}
+          counts={poppers}
+          onChange={setPoppers}
+        />
       </div>
     )
   }
@@ -102,6 +115,13 @@ function ScoreRow({ row, session, players, nicknames, onSaved }) {
           {t2}
         </button>
       </div>
+      <PopperSection
+        playerIds={matchPlayerIds}
+        players={players}
+        nicknames={nicknames}
+        counts={poppers}
+        onChange={setPoppers}
+      />
       <button
         onClick={handleSave}
         disabled={!canSave || saving}
@@ -125,6 +145,17 @@ function InlineEditForm({ match, row, session, players, nicknames, onSaved, onCa
   const [selected, setSelected] = useState(match.winner ?? null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [poppers, setPoppers] = useState({})
+
+  const matchPlayerIds = [row.team1_p1, row.team1_p2, row.team2_p1, row.team2_p2]
+
+  useEffect(() => {
+    supabase.from('poppers').select('*').eq('match_id', match.id).then(({ data }) => {
+      const c = {}
+      ;(data ?? []).forEach(p => { c[p.player_id] = p.count })
+      setPoppers(c)
+    })
+  }, [match.id])
 
   const playerName = (id) => {
     const nick = nicknames?.[id]
@@ -158,16 +189,11 @@ function InlineEditForm({ match, row, session, players, nicknames, onSaved, onCa
 
     const { error } = await supabase
       .from('matches')
-      .update({
-        score_team1: score1,
-        score_team2: score2,
-        winner,
-        normalized_score_team1: norm1,
-        normalized_score_team2: norm2,
-      })
+      .update({ score_team1: score1, score_team2: score2, winner, normalized_score_team1: norm1, normalized_score_team2: norm2 })
       .eq('id', match.id)
 
     if (!error) {
+      await saveMatchPoppers(match.id, session.id, row, poppers)
       setSaved(true)
       setTimeout(onSaved, 800)
     }
@@ -175,9 +201,7 @@ function InlineEditForm({ match, row, session, players, nicknames, onSaved, onCa
   }
 
   if (saved) {
-    return (
-      <p className="text-xs text-green-600 text-center py-1 mt-1">Score bijgewerkt ✓</p>
-    )
+    return <p className="text-xs text-green-600 text-center py-1 mt-1">Score bijgewerkt ✓</p>
   }
 
   if (isPoints) {
@@ -196,10 +220,7 @@ function InlineEditForm({ match, row, session, players, nicknames, onSaved, onCa
             style={{ MozAppearance: 'textfield', appearance: 'textfield' }}
           />
           <div className="flex gap-1 ml-auto">
-            <button
-              onClick={onCancel}
-              className="text-xs px-2 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50"
-            >
+            <button onClick={onCancel} className="text-xs px-2 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50">
               Annuleren
             </button>
             <button
@@ -221,6 +242,13 @@ function InlineEditForm({ match, row, session, players, nicknames, onSaved, onCa
             Som is {n1 + n2}, verwacht {session.points_per_match}
           </p>
         )}
+        <PopperSection
+          playerIds={matchPlayerIds}
+          players={players}
+          nicknames={nicknames}
+          counts={poppers}
+          onChange={setPoppers}
+        />
       </div>
     )
   }
@@ -245,11 +273,15 @@ function InlineEditForm({ match, row, session, players, nicknames, onSaved, onCa
           {t2}
         </button>
       </div>
+      <PopperSection
+        playerIds={matchPlayerIds}
+        players={players}
+        nicknames={nicknames}
+        counts={poppers}
+        onChange={setPoppers}
+      />
       <div className="flex gap-1 justify-end">
-        <button
-          onClick={onCancel}
-          className="text-xs px-2 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50"
-        >
+        <button onClick={onCancel} className="text-xs px-2 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50">
           Annuleren
         </button>
         <button
@@ -320,11 +352,7 @@ export default function ScheduleAccordion({ schedule, matches, players, session,
             const isCurrent = rows.some((r) => r.is_current)
             const isDone = rows.every((r) => r.is_completed)
 
-            const borderCls = isDone
-              ? 'border-green-200'
-              : isCurrent
-              ? 'border-primary/40'
-              : 'border-gray-100'
+            const borderCls = isDone ? 'border-green-200' : isCurrent ? 'border-primary/40' : 'border-gray-100'
             const bgCls = isDone ? 'bg-green-50' : isCurrent ? 'bg-primary/5' : 'bg-gray-50'
 
             return (

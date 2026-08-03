@@ -29,3 +29,21 @@ export function subscribeToSessions(callback) {
 
   return () => supabase.removeChannel(channel)
 }
+
+export async function saveMatchPoppers(matchId, sessionId, matchRow, counts) {
+  await supabase.from('poppers').delete().eq('match_id', matchId)
+  const team1 = [matchRow.team1_p1, matchRow.team1_p2]
+  const team2 = [matchRow.team2_p1, matchRow.team2_p2]
+  const rows = [...team1, ...team2]
+    .filter(id => (counts[id] || 0) > 0)
+    .map(id => ({
+      match_id: matchId,
+      session_id: sessionId,
+      player_id: id,
+      opponent_ids: team1.includes(id) ? team2 : team1,
+      count: counts[id],
+    }))
+  if (rows.length > 0) {
+    await supabase.from('poppers').insert(rows)
+  }
+}

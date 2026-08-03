@@ -1,11 +1,13 @@
 import { useState } from 'react'
-import { supabase } from '../../supabaseClient'
+import { supabase, saveMatchPoppers } from '../../supabaseClient'
+import PopperSection from './PopperSection'
 
 export default function PointsScoreInput({ scheduleRow, session, players, nicknames, onSaved }) {
   const [s1, setS1] = useState('')
   const [s2, setS2] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
+  const [poppers, setPoppers] = useState({})
 
   const n1 = parseInt(s1) || 0
   const n2 = parseInt(s2) || 0
@@ -19,6 +21,8 @@ export default function PointsScoreInput({ scheduleRow, session, players, nickna
   const team1 = `${playerName(scheduleRow.team1_p1)} & ${playerName(scheduleRow.team1_p2)}`
   const team2 = `${playerName(scheduleRow.team2_p1)} & ${playerName(scheduleRow.team2_p2)}`
 
+  const matchPlayerIds = [scheduleRow.team1_p1, scheduleRow.team1_p2, scheduleRow.team2_p1, scheduleRow.team2_p2]
+
   const handleSave = async () => {
     if (s1 === '' || s2 === '' || saving) return
     setSaving(true)
@@ -29,7 +33,7 @@ export default function PointsScoreInput({ scheduleRow, session, players, nickna
     const norm2 = winner === 2 ? 1.0 : winner === 1 ? 0.0 : 0.5
 
     try {
-      const { error: mErr } = await supabase.from('matches').insert({
+      const { data: match, error: mErr } = await supabase.from('matches').insert({
         session_id: session.id,
         round_number: scheduleRow.round_number,
         team1_p1: scheduleRow.team1_p1,
@@ -42,7 +46,7 @@ export default function PointsScoreInput({ scheduleRow, session, players, nickna
         normalized_score_team1: norm1,
         normalized_score_team2: norm2,
         is_completed: true,
-      })
+      }).select().single()
       if (mErr) throw mErr
 
       const { error: sErr } = await supabase
@@ -51,6 +55,7 @@ export default function PointsScoreInput({ scheduleRow, session, players, nickna
         .eq('id', scheduleRow.id)
       if (sErr) throw sErr
 
+      await saveMatchPoppers(match.id, session.id, scheduleRow, poppers)
       onSaved()
     } catch (e) {
       setError(e.message)
@@ -94,6 +99,14 @@ export default function PointsScoreInput({ scheduleRow, session, players, nickna
         </p>
       )}
       {error && <p className="text-red-500 text-xs text-center mt-2">{error}</p>}
+
+      <PopperSection
+        playerIds={matchPlayerIds}
+        players={players}
+        nicknames={nicknames}
+        counts={poppers}
+        onChange={setPoppers}
+      />
 
       <button
         onClick={handleSave}
