@@ -7,31 +7,33 @@ function RankingTable({ title, ranking, columns }) {
   return (
     <div className="card flex-1 min-w-0 bg-gray-50 p-5">
       <h3 className="font-semibold text-gray-500 mb-4 text-xs uppercase tracking-wide">{title}</h3>
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="text-gray-400 text-xs border-b border-gray-200">
-            <th className="text-left pb-3 font-medium w-8">#</th>
-            <th className="text-left pb-3 font-medium">Naam</th>
-            {columns.map((col) => (
-              <th key={col.label} className="text-right pb-3 pl-5 font-medium whitespace-nowrap">{col.label}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {ranking.map((p) => (
-            <tr
-              key={p.id}
-              className={`border-b border-gray-100 last:border-b-0 ${p.position === 1 ? 'bg-orange-50 font-bold text-primary' : 'text-gray-700'}`}
-            >
-              <td className="py-3 w-8">{p.medal ?? p.position}</td>
-              <td className="py-3">{p.name}</td>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm table-fixed">
+          <thead>
+            <tr className="text-gray-400 text-xs border-b border-gray-200">
+              <th className="text-left pb-3 font-medium w-8">#</th>
+              <th className="text-left pb-3 font-medium">Naam</th>
               {columns.map((col) => (
-                <td key={col.label} className="text-right py-3 pl-5">{col.render(p)}</td>
+                <th key={col.label} className={`text-right pb-3 font-medium ${col.w ?? 'w-14'}`}>{col.label}</th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {ranking.map((p) => (
+              <tr
+                key={p.id}
+                className={`border-b border-gray-100 last:border-b-0 ${p.position === 1 ? 'bg-orange-50 font-bold text-primary' : 'text-gray-700'}`}
+              >
+                <td className="py-3">{p.medal ?? p.position}</td>
+                <td className="py-3 truncate">{p.name}</td>
+                {columns.map((col) => (
+                  <td key={col.label} className={`text-right py-3 ${col.w ?? 'w-14'}`}>{col.render(p)}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }
@@ -82,7 +84,7 @@ export default function EndSessionScreen({ session, players, onBack, onEdit }) {
   )
 
   return (
-    <div className="max-w-lg mx-auto p-4 pb-8">
+    <div className="max-w-3xl mx-auto p-4 pb-8">
       {/* Header */}
       <div className="text-center pt-4 mb-8">
         <div className="text-4xl mb-3">🎾</div>
@@ -109,46 +111,48 @@ export default function EndSessionScreen({ session, players, onBack, onEdit }) {
             title="Punten ranking"
             ranking={pointsRanking}
             columns={[
-              { label: 'Pnt. gew.', render: (p) => p.pointsWon },
-              { label: 'Pnt. gesp.', render: (p) => p.pointsPlayed },
-              { label: '%', render: (p) => p.pct !== null ? `${p.pct}%` : '–' },
+              { label: 'Pnt. gew.', w: 'w-16', render: (p) => p.pointsWon },
+              { label: 'Pnt. gesp.', w: 'w-16', render: (p) => p.pointsPlayed },
+              { label: '%', w: 'w-12', render: (p) => p.pct !== null ? `${p.pct}%` : '–' },
             ]}
           />
           <RankingTable
             title="Potjes ranking"
             ranking={potjesRanking}
             columns={[
-              { label: 'Pot. gew.', render: (p) => p.wins },
-              { label: 'Pot. gesp.', render: (p) => p.played },
-              { label: 'Win%', render: (p) => p.winPct !== null ? `${p.winPct}%` : '–' },
+              { label: 'Pot. gew.', w: 'w-14', render: (p) => p.wins },
+              { label: 'Pot. gesp.', w: 'w-14', render: (p) => p.played },
+              { label: 'Win%', w: 'w-12', render: (p) => p.winPct !== null ? `${p.winPct}%` : '–' },
             ]}
           />
         </div>
       ) : (
         <div className="card bg-gray-50 p-5">
           <h3 className="font-semibold text-gray-500 mb-4 text-xs uppercase tracking-wide">Eindstand</h3>
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full text-sm table-fixed">
             <thead>
               <tr className="text-gray-400 text-xs border-b border-gray-200">
                 <th className="text-left pb-3 font-medium w-8">#</th>
                 <th className="text-left pb-3 font-medium">Naam</th>
-                <th className="text-right pb-3 pl-5 font-medium">Gew.</th>
-                <th className="text-right pb-3 pl-5 font-medium">Gesp.</th>
-                <th className="text-right pb-3 pl-5 font-medium">Win%</th>
+                <th className="text-right pb-3 font-medium w-14">Gew.</th>
+                <th className="text-right pb-3 font-medium w-14">Gesp.</th>
+                <th className="text-right pb-3 font-medium w-12">Win%</th>
               </tr>
             </thead>
             <tbody>
               {potjesRanking.map((p) => (
                 <tr key={p.id} className={`border-b border-gray-100 last:border-b-0 ${p.position === 1 ? 'bg-orange-50 font-bold text-primary' : 'text-gray-700'}`}>
-                  <td className="py-3 w-8">{p.medal ?? p.position}</td>
-                  <td className="py-3">{p.name}</td>
-                  <td className="text-right py-3 pl-5">{p.wins}</td>
-                  <td className="text-right py-3 pl-5">{p.played}</td>
-                  <td className="text-right py-3 pl-5">{p.winPct !== null ? `${p.winPct}%` : '–'}</td>
+                  <td className="py-3">{p.medal ?? p.position}</td>
+                  <td className="py-3 truncate">{p.name}</td>
+                  <td className="text-right py-3 w-14">{p.wins}</td>
+                  <td className="text-right py-3 w-14">{p.played}</td>
+                  <td className="text-right py-3 w-12">{p.winPct !== null ? `${p.winPct}%` : '–'}</td>
                 </tr>
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
