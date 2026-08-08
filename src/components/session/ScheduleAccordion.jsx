@@ -2,12 +2,16 @@ import { useState, useEffect } from 'react'
 import { supabase, saveMatchPoppers } from '../../supabaseClient'
 import PopperSection from './PopperSection'
 import PlayerAvatar from '../shared/PlayerAvatar'
+import SetsEditor from './SetsEditor'
+import { formatSetDetails } from '../../utils/tournament'
 
 function ScoreRow({ row, session, players, nicknames, onSaved }) {
   const isPoints = session.score_mode === 'points'
+  const isGamesSets = session.score_mode === 'games_sets'
   const [s1, setS1] = useState('')
   const [s2, setS2] = useState('')
   const [winner, setWinner] = useState(null)
+  const [setsResult, setSetsResult] = useState(null)
   const [saving, setSaving] = useState(false)
   const [poppers, setPoppers] = useState({})
 
@@ -19,27 +23,39 @@ function ScoreRow({ row, session, players, nicknames, onSaved }) {
   const t2 = `${playerName(row.team2_p1)} & ${playerName(row.team2_p2)}`
   const matchPlayerIds = [row.team1_p1, row.team1_p2, row.team2_p1, row.team2_p2]
 
-  const canSave = isPoints ? (s1 !== '' && s2 !== '') : winner !== null
+  const canSave = isGamesSets ? !!setsResult : isPoints ? (s1 !== '' && s2 !== '') : winner !== null
 
   const handleSave = async () => {
     if (!canSave || saving) return
     setSaving(true)
 
-    const n1 = isPoints ? (parseInt(s1) || 0) : (winner === 1 ? 1 : 0)
-    const n2 = isPoints ? (parseInt(s2) || 0) : (winner === 2 ? 1 : 0)
-    const w = isPoints ? (n1 > n2 ? 1 : n2 > n1 ? 2 : null) : winner
-    const norm1 = w === 1 ? 1.0 : w === 2 ? 0.0 : 0.5
-    const norm2 = w === 2 ? 1.0 : w === 1 ? 0.0 : 0.5
+    const payload = isGamesSets
+      ? {
+          score_team1: setsResult.score_team1,
+          score_team2: setsResult.score_team2,
+          winner: setsResult.winner,
+          normalized_score_team1: setsResult.normalized_score_team1,
+          normalized_score_team2: setsResult.normalized_score_team2,
+          set_details: setsResult.setDetails,
+        }
+      : (() => {
+          const n1 = isPoints ? (parseInt(s1) || 0) : (winner === 1 ? 1 : 0)
+          const n2 = isPoints ? (parseInt(s2) || 0) : (winner === 2 ? 1 : 0)
+          const w = isPoints ? (n1 > n2 ? 1 : n2 > n1 ? 2 : null) : winner
+          return {
+            score_team1: n1, score_team2: n2,
+            winner: w,
+            normalized_score_team1: w === 1 ? 1.0 : w === 2 ? 0.0 : 0.5,
+            normalized_score_team2: w === 2 ? 1.0 : w === 1 ? 0.0 : 0.5,
+          }
+        })()
 
     const { data: match, error: mErr } = await supabase.from('matches').insert({
       session_id: session.id,
       round_number: row.round_number,
       team1_p1: row.team1_p1, team1_p2: row.team1_p2,
       team2_p1: row.team2_p1, team2_p2: row.team2_p2,
-      score_team1: n1, score_team2: n2,
-      winner: w,
-      normalized_score_team1: norm1,
-      normalized_score_team2: norm2,
+      ...payload,
       is_completed: true,
     }).select().single()
 
@@ -49,6 +65,38 @@ function ScoreRow({ row, session, players, nicknames, onSaved }) {
       onSaved()
     }
     setSaving(false)
+  }
+
+  if (isGamesSets) {
+    return (
+      <div className="mt-2">
+        <div className="flex items-center justify-between text-xs font-medium text-gray-600 mb-1.5">
+          <span>{t1}</span>
+          <span className="text-gray-300">vs</span>
+          <span>{t2}</span>
+        </div>
+        <SetsEditor setsFormat={session.sets_format} onChange={setSetsResult} />
+        <PopperSection
+          playerIds={matchPlayerIds}
+          players={players}
+          nicknames={nicknames}
+          counts={poppers}
+          onChange={setPoppers}
+        />
+        <button
+          onClick={handleSave}
+          disabled={!canSave || saving}
+          className="w-full text-xs text-white bg-primary rounded-lg py-1.5 mt-2 hover:bg-primary-hover disabled:opacity-40 flex items-center justify-center"
+        >
+          {saving ? (
+            <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+          ) : 'Opslaan'}
+        </button>
+      </div>
+    )
   }
 
   if (isPoints) {
@@ -141,9 +189,11 @@ function ScoreRow({ row, session, players, nicknames, onSaved }) {
 
 function InlineEditForm({ match, row, session, players, nicknames, onSaved, onCancel }) {
   const isPoints = session.score_mode === 'points'
+  const isGamesSets = session.score_mode === 'games_sets'
   const [s1, setS1] = useState(String(match.score_team1 ?? ''))
   const [s2, setS2] = useState(String(match.score_team2 ?? ''))
   const [selected, setSelected] = useState(match.winner ?? null)
+  const [setsResult, setSetsResult] = useState(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [poppers, setPoppers] = useState({})
@@ -173,24 +223,39 @@ function InlineEditForm({ match, row, session, players, nicknames, onSaved, onCa
     if (saving) return
     setSaving(true)
 
-    let winner, score1, score2
-    if (isPoints) {
-      if (s1 === '' || s2 === '') { setSaving(false); return }
-      winner = n1 > n2 ? 1 : n2 > n1 ? 2 : null
-      score1 = n1; score2 = n2
+    let payload
+    if (isGamesSets) {
+      if (!setsResult) { setSaving(false); return }
+      payload = {
+        score_team1: setsResult.score_team1, score_team2: setsResult.score_team2,
+        winner: setsResult.winner,
+        normalized_score_team1: setsResult.normalized_score_team1,
+        normalized_score_team2: setsResult.normalized_score_team2,
+        set_details: setsResult.setDetails,
+      }
     } else {
-      if (!selected) { setSaving(false); return }
-      winner = selected
-      score1 = winner === 1 ? 1 : 0
-      score2 = winner === 2 ? 1 : 0
+      let winner, score1, score2
+      if (isPoints) {
+        if (s1 === '' || s2 === '') { setSaving(false); return }
+        winner = n1 > n2 ? 1 : n2 > n1 ? 2 : null
+        score1 = n1; score2 = n2
+      } else {
+        if (!selected) { setSaving(false); return }
+        winner = selected
+        score1 = winner === 1 ? 1 : 0
+        score2 = winner === 2 ? 1 : 0
+      }
+      payload = {
+        score_team1: score1, score_team2: score2,
+        winner,
+        normalized_score_team1: winner === 1 ? 1.0 : winner === 2 ? 0.0 : 0.5,
+        normalized_score_team2: winner === 2 ? 1.0 : winner === 1 ? 0.0 : 0.5,
+      }
     }
-
-    const norm1 = winner === 1 ? 1.0 : winner === 2 ? 0.0 : 0.5
-    const norm2 = winner === 2 ? 1.0 : winner === 1 ? 0.0 : 0.5
 
     const { error } = await supabase
       .from('matches')
-      .update({ score_team1: score1, score_team2: score2, winner, normalized_score_team1: norm1, normalized_score_team2: norm2 })
+      .update(payload)
       .eq('id', match.id)
 
     if (!error) {
@@ -203,6 +268,38 @@ function InlineEditForm({ match, row, session, players, nicknames, onSaved, onCa
 
   if (saved) {
     return <p className="text-xs text-green-600 text-center py-1 mt-1">Score bijgewerkt ✓</p>
+  }
+
+  if (isGamesSets) {
+    return (
+      <div className="mt-1 border-t border-gray-100 pt-2">
+        <SetsEditor setsFormat={session.sets_format} initialSetDetails={match.set_details} onChange={setSetsResult} />
+        <PopperSection
+          playerIds={matchPlayerIds}
+          players={players}
+          nicknames={nicknames}
+          counts={poppers}
+          onChange={setPoppers}
+        />
+        <div className="flex gap-1 justify-end mt-2">
+          <button onClick={onCancel} className="text-xs px-2 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50">
+            Annuleren
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving || !setsResult}
+            className="text-xs text-white bg-primary rounded-lg px-2 py-1.5 hover:bg-primary-hover disabled:opacity-40 flex items-center justify-center min-w-[52px]"
+          >
+            {saving ? (
+              <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            ) : 'Opslaan'}
+          </button>
+        </div>
+      </div>
+    )
   }
 
   if (isPoints) {
@@ -391,7 +488,14 @@ export default function ScheduleAccordion({ schedule, matches, players, session,
                               </span>
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
-                              <span className="font-semibold text-gray-600">{scoreStr(match)}</span>
+                              {session.score_mode === 'games_sets' ? (
+                                <div className="text-right">
+                                  <div className="font-semibold text-gray-600">{formatSetDetails(match.set_details)}</div>
+                                  <div className="text-[10px] text-gray-400">{match.score_team1} – {match.score_team2} games</div>
+                                </div>
+                              ) : (
+                                <span className="font-semibold text-gray-600">{scoreStr(match)}</span>
+                              )}
                               <button
                                 onClick={() => handleEditClick(match, row)}
                                 className="text-gray-400 hover:text-primary ml-1"

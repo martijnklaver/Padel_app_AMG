@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase, uploadPlayerAvatar } from '../../supabaseClient'
 import { maxUniqueMatches, generateSchedule, generateFivePlayerSchedule } from '../../utils/tournament'
+import { SCORE_MODES, SETS_FORMATS } from '../../utils/scoreModes'
 import PlayerAvatar from '../shared/PlayerAvatar'
 
 function shuffleIds(ids) {
@@ -33,6 +34,7 @@ export default function NewSessionModal({ players, onCreated, onClose, onPlayers
   const [recentOrders, setRecentOrders] = useState(null)
   const [nicknames, setNicknames] = useState({})
   const [scoreMode, setScoreMode] = useState('points')
+  const [setsFormat, setSetsFormat] = useState(3)
   const [pointsPerMatch, setPointsPerMatch] = useState(16)
   const [totalMatches, setTotalMatches] = useState(0)
   const [submitting, setSubmitting] = useState(false)
@@ -61,6 +63,11 @@ export default function NewSessionModal({ players, onCreated, onClose, onPlayers
     if (selectedIds.length !== 5 || recentOrders === null) return
     setPlayerOrder((prev) => generateUniqueOrder(prev, recentOrders))
   }, [selectedIds.length, recentOrders])
+
+  // Games & Sets is alleen beschikbaar bij 4 spelers
+  useEffect(() => {
+    if (selectedIds.length === 5 && scoreMode === 'games_sets') setScoreMode('points')
+  }, [selectedIds.length, scoreMode])
 
   const togglePlayer = (id) => {
     if (selectedIds.includes(id)) {
@@ -122,6 +129,7 @@ export default function NewSessionModal({ players, onCreated, onClose, onPlayers
           player_ids: selectedIds,
           score_mode: scoreMode,
           points_per_match: scoreMode === 'points' ? pointsPerMatch : null,
+          sets_format: scoreMode === 'games_sets' ? setsFormat : null,
           total_matches: totalMatches,
           is_active: true,
           is_completed: false,
@@ -329,22 +337,52 @@ export default function NewSessionModal({ players, onCreated, onClose, onPlayers
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-2 uppercase tracking-wide">Score mode</label>
             <div className="flex gap-2">
-              {['points', 'games'].map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => setScoreMode(mode)}
-                  className={`flex-1 py-2.5 rounded-lg border text-sm font-medium transition-colors ${
-                    scoreMode === mode
-                      ? 'bg-primary text-white border-primary'
-                      : 'bg-white text-gray-700 border-gray-200 hover:border-primary/40'
-                  }`}
-                >
-                  {mode === 'points' ? 'Punten' : 'Games'}
-                </button>
-              ))}
+              {SCORE_MODES.map(({ value, label }) => {
+                const disabled = value === 'games_sets' && isFivePlayers
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => setScoreMode(value)}
+                    title={disabled ? 'Games & Sets is alleen beschikbaar bij 4 spelers' : undefined}
+                    className={`flex-1 py-2.5 rounded-lg border text-sm font-medium transition-colors ${
+                      scoreMode === value
+                        ? 'bg-primary text-white border-primary'
+                        : disabled
+                          ? 'bg-white text-gray-300 border-gray-100 cursor-not-allowed'
+                          : 'bg-white text-gray-700 border-gray-200 hover:border-primary/40'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                )
+              })}
             </div>
           </div>
+
+          {/* Best-of (alleen bij Games & Sets) */}
+          {scoreMode === 'games_sets' && (
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-2 uppercase tracking-wide">Formaat</label>
+              <div className="flex gap-2">
+                {SETS_FORMATS.map(({ value, label }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setSetsFormat(value)}
+                    className={`flex-1 py-2.5 rounded-lg border text-sm font-medium transition-colors ${
+                      setsFormat === value
+                        ? 'bg-primary text-white border-primary'
+                        : 'bg-white text-gray-700 border-gray-200 hover:border-primary/40'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Punten per wedstrijd + Aantal wedstrijden */}
           {showMatchCount && (

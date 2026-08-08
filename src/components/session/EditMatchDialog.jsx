@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react'
 import { supabase, saveMatchPoppers } from '../../supabaseClient'
 import PopperSection from './PopperSection'
+import SetsEditor from './SetsEditor'
 
 export default function EditMatchDialog({ match, session, players, nicknames, onSaved, onClose }) {
   const isPoints = session.score_mode === 'points'
+  const isGamesSets = session.score_mode === 'games_sets'
 
   const [s1, setS1] = useState(String(match.score_team1 ?? ''))
   const [s2, setS2] = useState(String(match.score_team2 ?? ''))
   const [selected, setSelected] = useState(match.winner ?? null)
+  const [setsResult, setSetsResult] = useState(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
   const [poppers, setPoppers] = useState({})
@@ -35,26 +38,41 @@ export default function EditMatchDialog({ match, session, players, nicknames, on
     setSaving(true)
     setError(null)
 
-    let winner, score1, score2, norm1, norm2
+    let payload
 
-    if (isPoints) {
-      if (s1 === '' || s2 === '') { setSaving(false); return }
-      winner = n1 > n2 ? 1 : n2 > n1 ? 2 : null
-      score1 = n1; score2 = n2
+    if (isGamesSets) {
+      if (!setsResult) { setSaving(false); return }
+      payload = {
+        score_team1: setsResult.score_team1, score_team2: setsResult.score_team2,
+        winner: setsResult.winner,
+        normalized_score_team1: setsResult.normalized_score_team1,
+        normalized_score_team2: setsResult.normalized_score_team2,
+        set_details: setsResult.setDetails,
+      }
     } else {
-      if (!selected) { setSaving(false); return }
-      winner = selected
-      score1 = winner === 1 ? 1 : 0
-      score2 = winner === 2 ? 1 : 0
+      let winner, score1, score2
+      if (isPoints) {
+        if (s1 === '' || s2 === '') { setSaving(false); return }
+        winner = n1 > n2 ? 1 : n2 > n1 ? 2 : null
+        score1 = n1; score2 = n2
+      } else {
+        if (!selected) { setSaving(false); return }
+        winner = selected
+        score1 = winner === 1 ? 1 : 0
+        score2 = winner === 2 ? 1 : 0
+      }
+      payload = {
+        score_team1: score1, score_team2: score2,
+        winner,
+        normalized_score_team1: winner === 1 ? 1.0 : winner === 2 ? 0.0 : 0.5,
+        normalized_score_team2: winner === 2 ? 1.0 : winner === 1 ? 0.0 : 0.5,
+      }
     }
-
-    norm1 = winner === 1 ? 1.0 : winner === 2 ? 0.0 : 0.5
-    norm2 = winner === 2 ? 1.0 : winner === 1 ? 0.0 : 0.5
 
     try {
       const { error: mErr } = await supabase
         .from('matches')
-        .update({ score_team1: score1, score_team2: score2, winner, normalized_score_team1: norm1, normalized_score_team2: norm2 })
+        .update(payload)
         .eq('id', match.id)
       if (mErr) throw mErr
       await saveMatchPoppers(match.id, session.id, match, poppers)
@@ -80,7 +98,11 @@ export default function EditMatchDialog({ match, session, players, nicknames, on
           {t1} <span className="text-gray-300">vs</span> {t2}
         </p>
 
-        {isPoints ? (
+        {isGamesSets ? (
+          <div className="mb-3">
+            <SetsEditor setsFormat={session.sets_format} initialSetDetails={match.set_details} onChange={setSetsResult} />
+          </div>
+        ) : isPoints ? (
           <>
             <div className="flex items-center gap-3 justify-center mb-3">
               <input type="number" min="0" value={s1} onChange={(e) => setS1(e.target.value)}

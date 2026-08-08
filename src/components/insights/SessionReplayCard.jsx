@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../supabaseClient'
-import { computeSessionRanking } from '../../utils/tournament'
+import { computeSessionRanking, formatSetDetails } from '../../utils/tournament'
 
 export default function SessionReplayCard({ sessions, players }) {
   const [selectedId, setSelectedId] = useState('')
@@ -43,6 +43,7 @@ export default function SessionReplayCard({ sessions, players }) {
   const scoreLabel = (m) => {
     if (!selectedSession) return ''
     if (selectedSession.score_mode === 'games') return m.winner === 1 ? '1–0' : '0–1'
+    if (selectedSession.score_mode === 'games_sets') return formatSetDetails(m.set_details)
     return `${m.score_team1}–${m.score_team2}`
   }
 

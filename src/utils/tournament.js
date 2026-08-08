@@ -232,6 +232,33 @@ export function computeSessionRanking(session, players, matches) {
   return computeRankingFromMatches(sessionPlayers, sessionMatches)
 }
 
+// Games & Sets — samenvatting van een set_details array (zoals opgeslagen op matches.set_details)
+export function summarizeSetDetails(setDetails) {
+  let team1Games = 0
+  let team2Games = 0
+  let setsWon1 = 0
+  let setsWon2 = 0
+
+  for (const s of setDetails ?? []) {
+    team1Games += s.team1
+    team2Games += s.team2
+    if (s.team1 > s.team2) setsWon1++
+    else if (s.team2 > s.team1) setsWon2++
+  }
+
+  const winner = setsWon1 > setsWon2 ? 1 : setsWon2 > setsWon1 ? 2 : null
+
+  return { team1Games, team2Games, setsWon1, setsWon2, winner }
+}
+
+// Games & Sets — leesbare weergave per set, bijv. "6-4, 7-6(TB)" of "ST 10-7"
+export function formatSetDetails(setDetails) {
+  if (!setDetails?.length) return ''
+  return setDetails
+    .map((s) => (s.supertiebreak ? 'Supertiebreak' : `${s.team1}-${s.team2}${s.tiebreak ? '(TB)' : ''}`))
+    .join(', ')
+}
+
 export function computeBestDuo(players, allMatches) {
   const duoStats = new Map()
 

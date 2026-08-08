@@ -1,11 +1,14 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../supabaseClient'
+import SetsEditor from './SetsEditor'
 
 function EditMatchRow({ scheduleRow, match, session, players, onSaved }) {
   const isPoints = session.score_mode === 'points'
+  const isGamesSets = session.score_mode === 'games_sets'
   const [s1, setS1] = useState(match ? String(match.score_team1 ?? '') : '')
   const [s2, setS2] = useState(match ? String(match.score_team2 ?? '') : '')
   const [selectedWinner, setSelectedWinner] = useState(match?.winner ?? null)
+  const [setsResult, setSetsResult] = useState(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState(null)
@@ -17,28 +20,38 @@ function EditMatchRow({ scheduleRow, match, session, players, onSaved }) {
   const n1 = parseInt(s1) || 0
   const n2 = parseInt(s2) || 0
 
-  const canSave = isPoints ? (s1 !== '' && s2 !== '') : selectedWinner !== null
+  const canSave = isGamesSets ? !!setsResult : isPoints ? (s1 !== '' && s2 !== '') : selectedWinner !== null
 
   const handleSave = async () => {
     if (!canSave || saving) return
     setSaving(true)
     setError(null)
 
-    let score1, score2, winner, norm1, norm2
-    if (isPoints) {
-      score1 = n1; score2 = n2
-      winner = n1 > n2 ? 1 : n2 > n1 ? 2 : null
+    let payload
+    if (isGamesSets) {
+      payload = {
+        score_team1: setsResult.score_team1, score_team2: setsResult.score_team2,
+        winner: setsResult.winner,
+        normalized_score_team1: setsResult.normalized_score_team1,
+        normalized_score_team2: setsResult.normalized_score_team2,
+        set_details: setsResult.setDetails,
+      }
     } else {
-      winner = selectedWinner
-      score1 = winner === 1 ? 1 : 0
-      score2 = winner === 2 ? 1 : 0
-    }
-    norm1 = winner === 1 ? 1.0 : winner === 2 ? 0.0 : 0.5
-    norm2 = winner === 2 ? 1.0 : winner === 1 ? 0.0 : 0.5
-
-    const payload = {
-      score_team1: score1, score_team2: score2,
-      winner, normalized_score_team1: norm1, normalized_score_team2: norm2,
+      let score1, score2, winner
+      if (isPoints) {
+        score1 = n1; score2 = n2
+        winner = n1 > n2 ? 1 : n2 > n1 ? 2 : null
+      } else {
+        winner = selectedWinner
+        score1 = winner === 1 ? 1 : 0
+        score2 = winner === 2 ? 1 : 0
+      }
+      payload = {
+        score_team1: score1, score_team2: score2,
+        winner,
+        normalized_score_team1: winner === 1 ? 1.0 : winner === 2 ? 0.0 : 0.5,
+        normalized_score_team2: winner === 2 ? 1.0 : winner === 1 ? 0.0 : 0.5,
+      }
     }
 
     let err
@@ -76,7 +89,11 @@ function EditMatchRow({ scheduleRow, match, session, players, onSaved }) {
         <span className="flex-1 text-right leading-tight">{t2}</span>
       </div>
 
-      {isPoints ? (
+      {isGamesSets ? (
+        <div className="mb-4">
+          <SetsEditor setsFormat={session.sets_format} initialSetDetails={match?.set_details} onChange={setSetsResult} />
+        </div>
+      ) : isPoints ? (
         <div className="flex items-center justify-center gap-4 mb-4">
           <input
             type="number"

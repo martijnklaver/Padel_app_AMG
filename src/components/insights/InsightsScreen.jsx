@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../supabaseClient'
+import { SCORE_MODES } from '../../utils/scoreModes'
 import OverallStatsCard from './OverallStatsCard'
 import PerformanceChart from './PerformanceChart'
 import BestDuoCard from './BestDuoCard'
@@ -14,21 +15,36 @@ const LIMIT_OPTIONS = [
   { label: 'Laatste 10', value: 10 },
 ]
 
+const SCORE_MODE_FILTER_OPTIONS = [
+  { label: 'Alle potjes', value: null },
+  ...SCORE_MODES.map(({ value, label }) => ({ value, label })),
+]
+
+const COMPLETENESS_OPTIONS = [
+  { label: 'Alle sessies', value: false },
+  { label: 'Alleen volledige sessies', value: true },
+]
+
 export default function InsightsScreen({ players, onBack }) {
   const [matches, setMatches] = useState([])
   const [sessions, setSessions] = useState([])
+  const [schedule, setSchedule] = useState([])
   const [poppers, setPoppers] = useState([])
   const [loading, setLoading] = useState(true)
   const [sessionLimit, setSessionLimit] = useState(null)
+  const [scoreModeFilter, setScoreModeFilter] = useState(null)
+  const [onlyComplete, setOnlyComplete] = useState(false)
 
   const fetchData = useCallback(async () => {
-    const [{ data: allMatches }, { data: allSessions }, { data: allPoppers }] = await Promise.all([
+    const [{ data: allMatches }, { data: allSessions }, { data: allSchedule }, { data: allPoppers }] = await Promise.all([
       supabase.from('matches').select('*').eq('is_completed', true),
       supabase.from('sessions').select('*').order('date', { ascending: false }),
+      supabase.from('schedule').select('id, session_id, is_completed'),
       supabase.from('poppers').select('*'),
     ])
     setMatches(allMatches ?? [])
     setSessions(allSessions ?? [])
+    setSchedule(allSchedule ?? [])
     setPoppers(allPoppers ?? [])
     setLoading(false)
   }, [])
@@ -37,7 +53,18 @@ export default function InsightsScreen({ players, onBack }) {
     fetchData()
   }, [fetchData])
 
-  const filteredSessions = sessionLimit ? sessions.slice(0, sessionLimit) : sessions
+  // Een sessie is volledig als alle geplande wedstrijden zijn afgerond
+  const isSessionComplete = useCallback((sessionId) => {
+    const rows = schedule.filter((r) => r.session_id === sessionId)
+    return rows.length > 0 && rows.every((r) => r.is_completed)
+  }, [schedule])
+
+  const scopedSessions = sessionLimit ? sessions.slice(0, sessionLimit) : sessions
+  const filteredSessions = scopedSessions.filter((s) => {
+    if (scoreModeFilter && s.score_mode !== scoreModeFilter) return false
+    if (onlyComplete && !isSessionComplete(s.id)) return false
+    return true
+  })
   const filteredSessionIds = new Set(filteredSessions.map((s) => s.id))
   const filteredMatches = matches.filter((m) => filteredSessionIds.has(m.session_id))
   const filteredPoppers = poppers.filter((p) => filteredSessionIds.has(p.session_id))
@@ -67,6 +94,46 @@ export default function InsightsScreen({ players, onBack }) {
               onClick={() => setSessionLimit(opt.value)}
               className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-all ${
                 sessionLimit === opt.value
+                  ? 'bg-primary text-white border-primary'
+                  : 'bg-white text-gray-600 border-gray-200 hover:border-primary/40'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Score modus filter */}
+      <div className="mb-5">
+        <p className="text-xs text-gray-500 mb-2">Score modus:</p>
+        <div className="flex flex-wrap gap-1.5">
+          {SCORE_MODE_FILTER_OPTIONS.map((opt) => (
+            <button
+              key={String(opt.value)}
+              onClick={() => setScoreModeFilter(opt.value)}
+              className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-all ${
+                scoreModeFilter === opt.value
+                  ? 'bg-primary text-white border-primary'
+                  : 'bg-white text-gray-600 border-gray-200 hover:border-primary/40'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Volledigheid filter */}
+      <div className="mb-5">
+        <p className="text-xs text-gray-500 mb-2">Volledigheid:</p>
+        <div className="flex flex-wrap gap-1.5">
+          {COMPLETENESS_OPTIONS.map((opt) => (
+            <button
+              key={String(opt.value)}
+              onClick={() => setOnlyComplete(opt.value)}
+              className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-all ${
+                onlyComplete === opt.value
                   ? 'bg-primary text-white border-primary'
                   : 'bg-white text-gray-600 border-gray-200 hover:border-primary/40'
               }`}

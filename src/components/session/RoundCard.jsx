@@ -1,6 +1,8 @@
 import PointsScoreInput from './PointsScoreInput'
 import GamesScoreInput from './GamesScoreInput'
+import GamesSetsScoreInput from './GamesSetsScoreInput'
 import PlayerAvatar from '../shared/PlayerAvatar'
+import { formatSetDetails } from '../../utils/tournament'
 
 export default function RoundCard({
   title,
@@ -60,7 +62,14 @@ export default function RoundCard({
                   <span className="text-center leading-tight">{playerName(row.team1_p1)} & {playerName(row.team1_p2)}</span>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  <span className="font-bold text-gray-800 text-sm">{scoreLabel(match)}</span>
+                  {session.score_mode === 'games_sets' ? (
+                    <div className="text-center">
+                      <div className="font-bold text-gray-800 text-sm">{formatSetDetails(match.set_details)}</div>
+                      <div className="text-[11px] text-gray-400">{match.score_team1} – {match.score_team2} games</div>
+                    </div>
+                  ) : (
+                    <span className="font-bold text-gray-800 text-sm">{scoreLabel(match)}</span>
+                  )}
                   {onEdit && (
                     <button
                       onClick={() => onEdit(match, row)}
@@ -81,6 +90,14 @@ export default function RoundCard({
             ) : !muted ? (
               session.score_mode === 'points' ? (
                 <PointsScoreInput
+                  scheduleRow={row}
+                  session={session}
+                  players={players}
+                  nicknames={nicknames}
+                  onSaved={onScoreSaved}
+                />
+              ) : session.score_mode === 'games_sets' ? (
+                <GamesSetsScoreInput
                   scheduleRow={row}
                   session={session}
                   players={players}
