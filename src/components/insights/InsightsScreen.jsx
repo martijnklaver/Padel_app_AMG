@@ -25,6 +25,18 @@ const COMPLETENESS_OPTIONS = [
   { label: 'Alleen volledige sessies', value: true },
 ]
 
+const SESSION_TYPE_OPTIONS = [
+  { label: 'Alle sessies', value: null },
+  { label: 'Sessies met 5 spelers', value: 5 },
+  { label: 'Sessies met 4 spelers', value: 4 },
+]
+
+const POTJE_PLAYER_COUNT_OPTIONS = [
+  { label: 'Alle potjes', value: null },
+  { label: '4 spelers', value: 4 },
+  { label: '5 spelers', value: 5 },
+]
+
 export default function InsightsScreen({ players, onBack }) {
   const [matches, setMatches] = useState([])
   const [sessions, setSessions] = useState([])
@@ -34,6 +46,8 @@ export default function InsightsScreen({ players, onBack }) {
   const [sessionLimit, setSessionLimit] = useState(null)
   const [scoreModeFilter, setScoreModeFilter] = useState(null)
   const [onlyComplete, setOnlyComplete] = useState(false)
+  const [sessionTypeFilter, setSessionTypeFilter] = useState(null)
+  const [potjePlayerCountFilter, setPotjePlayerCountFilter] = useState(null)
 
   const fetchData = useCallback(async () => {
     const [{ data: allMatches }, { data: allSessions }, { data: allSchedule }, { data: allPoppers }] = await Promise.all([
@@ -53,21 +67,37 @@ export default function InsightsScreen({ players, onBack }) {
     fetchData()
   }, [fetchData])
 
-  // Een sessie is volledig als alle geplande wedstrijden zijn afgerond
-  const isSessionComplete = useCallback((sessionId) => {
-    const rows = schedule.filter((r) => r.session_id === sessionId)
+  // Volledigheid verschilt per score modus:
+  // - Punten: aantal afgeronde potjes moet gelijk zijn aan het geplande totaal
+  // - Games / Games & Sets: alle geplande wedstrijden (schedule) moeten zijn afgerond
+  const isSessionComplete = useCallback((session) => {
+    if (session.score_mode === 'points') {
+      const completedCount = matches.filter((m) => m.session_id === session.id).length
+      return completedCount === session.total_matches
+    }
+    const rows = schedule.filter((r) => r.session_id === session.id)
     return rows.length > 0 && rows.every((r) => r.is_completed)
-  }, [schedule])
+  }, [schedule, matches])
 
   const scopedSessions = sessionLimit ? sessions.slice(0, sessionLimit) : sessions
   const filteredSessions = scopedSessions.filter((s) => {
     if (scoreModeFilter && s.score_mode !== scoreModeFilter) return false
-    if (onlyComplete && !isSessionComplete(s.id)) return false
+    if (sessionTypeFilter && (s.player_ids?.length ?? 0) !== sessionTypeFilter) return false
+    if (onlyComplete && !isSessionComplete(s)) return false
     return true
   })
   const filteredSessionIds = new Set(filteredSessions.map((s) => s.id))
-  const filteredMatches = matches.filter((m) => filteredSessionIds.has(m.session_id))
-  const filteredPoppers = poppers.filter((p) => filteredSessionIds.has(p.session_id))
+  const sessionPlayerCount = new Map(sessions.map((s) => [s.id, s.player_ids?.length ?? 0]))
+
+  const matchesInPlayerCount = (sessionId) =>
+    !potjePlayerCountFilter || sessionPlayerCount.get(sessionId) === potjePlayerCountFilter
+
+  const filteredMatches = matches.filter(
+    (m) => filteredSessionIds.has(m.session_id) && matchesInPlayerCount(m.session_id)
+  )
+  const filteredPoppers = poppers.filter(
+    (p) => filteredSessionIds.has(p.session_id) && matchesInPlayerCount(p.session_id)
+  )
 
   return (
     <div className="max-w-lg mx-auto p-4">
@@ -114,6 +144,46 @@ export default function InsightsScreen({ players, onBack }) {
               onClick={() => setScoreModeFilter(opt.value)}
               className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-all ${
                 scoreModeFilter === opt.value
+                  ? 'bg-primary text-white border-primary'
+                  : 'bg-white text-gray-600 border-gray-200 hover:border-primary/40'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Sessietype filter (sessieniveau) */}
+      <div className="mb-5">
+        <p className="text-xs text-gray-500 mb-2">Sessietype:</p>
+        <div className="flex flex-wrap gap-1.5">
+          {SESSION_TYPE_OPTIONS.map((opt) => (
+            <button
+              key={String(opt.value)}
+              onClick={() => setSessionTypeFilter(opt.value)}
+              className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-all ${
+                sessionTypeFilter === opt.value
+                  ? 'bg-primary text-white border-primary'
+                  : 'bg-white text-gray-600 border-gray-200 hover:border-primary/40'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Aantal spelers filter (pottenniveau) */}
+      <div className="mb-5">
+        <p className="text-xs text-gray-500 mb-2">Potjes:</p>
+        <div className="flex flex-wrap gap-1.5">
+          {POTJE_PLAYER_COUNT_OPTIONS.map((opt) => (
+            <button
+              key={String(opt.value)}
+              onClick={() => setPotjePlayerCountFilter(opt.value)}
+              className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-all ${
+                potjePlayerCountFilter === opt.value
                   ? 'bg-primary text-white border-primary'
                   : 'bg-white text-gray-600 border-gray-200 hover:border-primary/40'
               }`}

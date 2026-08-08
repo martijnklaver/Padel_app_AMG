@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Paperclip } from 'lucide-react'
 import { supabase, uploadPlayerAvatar } from '../../supabaseClient'
 import PlayerAvatar from '../shared/PlayerAvatar'
+import PhotoPreviewModal from '../shared/PhotoPreviewModal'
 
 export default function SettingsScreen({ players, onPlayersUpdated }) {
   const [names, setNames] = useState(() =>
@@ -12,6 +13,7 @@ export default function SettingsScreen({ players, onPlayersUpdated }) {
   const [uploading, setUploading] = useState({})
   const [avatarSaved, setAvatarSaved] = useState({})
   const [avatarError, setAvatarError] = useState({})
+  const [previewPlayer, setPreviewPlayer] = useState(null)
 
   const handleSave = async (player) => {
     const newName = names[player.id].trim()
@@ -65,7 +67,13 @@ export default function SettingsScreen({ players, onPlayersUpdated }) {
           <div key={player.id} className="card w-full overflow-hidden">
             {/* Avatar + naam */}
             <div className="flex items-center gap-3 mb-3 w-full">
-              <PlayerAvatar player={player} size={48} />
+              <button
+                type="button"
+                onClick={() => player.avatar_url && setPreviewPlayer(player)}
+                className={player.avatar_url ? 'cursor-pointer shrink-0' : 'cursor-default shrink-0'}
+              >
+                <PlayerAvatar player={player} size={48} />
+              </button>
               <input
                 type="text"
                 value={names[player.id]}
@@ -131,6 +139,10 @@ export default function SettingsScreen({ players, onPlayersUpdated }) {
           </div>
         ))}
       </div>
+
+      {previewPlayer && (
+        <PhotoPreviewModal player={previewPlayer} onClose={() => setPreviewPlayer(null)} />
+      )}
     </div>
   )
 }
