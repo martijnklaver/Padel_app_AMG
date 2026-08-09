@@ -5,6 +5,16 @@ export const supabase = createClient(
   import.meta.env.VITE_SUPABASE_ANON_KEY
 )
 
+// Start de download van alle profielfoto's zodra spelers geladen zijn, zodat
+// de browser ze al in cache heeft tegen de tijd dat een pagina ze toont.
+export function preloadAvatars(players) {
+  players.forEach((p) => {
+    if (!p.avatar_url) return
+    const img = new Image()
+    img.src = p.avatar_url
+  })
+}
+
 export function subscribeToSession(sessionId, callback) {
   const channel = supabase
     .channel('session-' + sessionId)
@@ -39,7 +49,7 @@ export async function uploadPlayerAvatar(playerId, file) {
 
   const { data: uploadData, error: uploadErr } = await supabase.storage
     .from('avatars')
-    .upload(path, arrayBuffer, { upsert: true, contentType: file.type })
+    .upload(path, arrayBuffer, { upsert: true, contentType: file.type, cacheControl: '31536000' })
   console.log('[avatar] stap 3: upload result:', uploadData, 'error:', uploadErr)
 
   if (uploadErr) {
@@ -47,12 +57,13 @@ export async function uploadPlayerAvatar(playerId, file) {
   }
 
   const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path)
-  const url = `${urlData.publicUrl}?t=${Date.now()}`
-  console.log('[avatar] stap 4: public url:', url)
+  const plainUrl = urlData.publicUrl
+  console.log('[avatar] stap 4: public url:', plainUrl)
 
+  // DB bewaart de schone URL (geen cache-bust) zodat de browser 'm langdurig kan cachen.
   const { data: updateData, error: dbErr } = await supabase
     .from('players')
-    .update({ avatar_url: url })
+    .update({ avatar_url: plainUrl })
     .eq('id', playerId)
     .select()
   console.log('[avatar] stap 5: db update result:', updateData, 'error:', dbErr)
@@ -61,7 +72,9 @@ export async function uploadPlayerAvatar(playerId, file) {
     return { error: dbErr.message || 'Opslaan mislukt', url: null }
   }
 
-  return { error: null, url }
+  // Alleen direct na upload cache-busten, zodat de net geüploade foto meteen zichtbaar is
+  // (zelfde storage-pad kan al gecached zijn met de oude foto).
+  return { error: null, url: `${plainUrl}?t=${Date.now()}` }
 }
 
 export async function saveMatchPoppers(matchId, sessionId, matchRow, counts) {

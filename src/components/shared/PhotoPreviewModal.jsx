@@ -1,6 +1,5 @@
 export default function PhotoPreviewModal({ player, onClose }) {
   if (!player?.avatar_url) return null
-  const base = player.avatar_url.split('?')[0]
 
   return (
     <div
@@ -15,7 +14,7 @@ export default function PhotoPreviewModal({ player, onClose }) {
         ×
       </button>
       <img
-        src={`${base}?t=${Date.now()}`}
+        src={player.avatar_url}
         alt={player.name}
         onClick={(e) => e.stopPropagation()}
         className="max-w-full max-h-full rounded-lg object-contain"

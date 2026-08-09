@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase, subscribeToSessions } from './supabaseClient'
+import { supabase, subscribeToSessions, preloadAvatars } from './supabaseClient'
 import LoadingSpinner from './components/shared/LoadingSpinner'
 import HomeScreen from './components/home/HomeScreen'
 import ActiveSessionScreen from './components/session/ActiveSessionScreen'
@@ -31,6 +31,7 @@ export default function App() {
     })
 
     setPlayers(playersData ?? [])
+    preloadAvatars(playersData ?? [])
     setActiveSession(activeData ?? null)
     if (activeData) setActiveTab('active')
     setLoading(false)
