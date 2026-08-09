@@ -27,8 +27,8 @@ const COMPLETENESS_OPTIONS = [
 
 const SESSION_TYPE_OPTIONS = [
   { label: 'Alle sessies', value: null },
-  { label: 'Sessies met 5 spelers', value: 5 },
-  { label: 'Sessies met 4 spelers', value: 4 },
+  { label: '5 spelers', value: 5 },
+  { label: '4 spelers', value: 4 },
 ]
 
 export default function InsightsScreen({ players, onBack }) {
@@ -138,9 +138,9 @@ export default function InsightsScreen({ players, onBack }) {
         </div>
       </div>
 
-      {/* Sessietype filter (sessieniveau) */}
+      {/* Aantal spelers filter (sessieniveau) */}
       <div className="mb-5">
-        <p className="text-xs text-gray-500 mb-2">Sessietype:</p>
+        <p className="text-xs text-gray-500 mb-2">Aantal spelers:</p>
         <div className="flex flex-wrap gap-1.5">
           {SESSION_TYPE_OPTIONS.map((opt) => (
             <button
