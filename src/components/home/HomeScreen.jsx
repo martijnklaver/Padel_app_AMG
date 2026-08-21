@@ -3,21 +3,27 @@ import { supabase } from '../../supabaseClient'
 import SessionListItem from './SessionListItem'
 import NewSessionModal from './NewSessionModal'
 import ConfirmDialog from '../shared/ConfirmDialog'
+import HomeHero from './HomeHero'
 
 export default function HomeScreen({ players, onSessionCreated, onSelectSession, onEditSession, onPlayersUpdated }) {
   const [sessions, setSessions] = useState([])
+  const [matches, setMatches] = useState([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
 
   const fetchSessions = useCallback(async () => {
-    const { data } = await supabase
-      .from('sessions')
-      .select('*')
-      .order('date', { ascending: false })
-      .order('created_at', { ascending: false })
-    setSessions(data ?? [])
+    const [{ data: sessionData }, { data: matchData }] = await Promise.all([
+      supabase
+        .from('sessions')
+        .select('*')
+        .order('date', { ascending: false })
+        .order('created_at', { ascending: false }),
+      supabase.from('matches').select('*').eq('is_completed', true),
+    ])
+    setSessions(sessionData ?? [])
+    setMatches(matchData ?? [])
     setLoading(false)
   }, [])
 
@@ -61,6 +67,8 @@ export default function HomeScreen({ players, onSessionCreated, onSelectSession,
         </button>
       </div>
 
+      {!loading && <HomeHero players={players} sessions={sessions} matches={matches} />}
+
       {loading ? (
         <div className="text-center py-12 text-gray-400">Laden...</div>
       ) : sessions.length === 0 ? (
@@ -91,6 +99,7 @@ export default function HomeScreen({ players, onSessionCreated, onSelectSession,
                         key={s.id}
                         session={s}
                         players={players}
+                        matches={matches}
                         onClick={() => onSelectSession(s)}
                         onDelete={(session) => setDeleteTarget(session)}
                         onEdit={onEditSession}

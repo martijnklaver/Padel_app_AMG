@@ -43,6 +43,42 @@ function sessionWinnerIds(sessionPlayers, sessionMatches) {
   return new Set(ranking.filter((p) => p.position === 1).map((p) => p.id))
 }
 
+// Huidige (lopende) sessie-winstreak per speler: aantal meest recente sessies
+// op rij gewonnen, tot en met hun laatst gespeelde sessie. Voor UI-gebruik
+// (bijv. een "hot streak" indicator) — geen persistentie, alleen de eindstand
+// van de chronologische doorloop.
+export function computeCurrentSessionStreaks(players, sessions, matches) {
+  const completedSessions = sessions
+    .filter((s) => s.is_completed)
+    .slice()
+    .sort((a, b) => a.date.localeCompare(b.date) || (a.created_at ?? '').localeCompare(b.created_at ?? ''))
+
+  const streak = new Map(players.map((p) => [p.id, 0]))
+
+  for (const session of completedSessions) {
+    const sessionMatches = matches.filter((m) => m.session_id === session.id && m.is_completed)
+    if (sessionMatches.length === 0) continue
+
+    const sessionPlayerIds = session.player_ids ?? []
+    const sessionPlayers = players.filter((p) => sessionPlayerIds.includes(p.id))
+    if (sessionPlayers.length === 0) continue
+
+    const winnerIds = sessionWinnerIds(sessionPlayers, sessionMatches)
+    for (const p of sessionPlayers) {
+      const played = sessionMatches.some((m) =>
+        [m.team1_p1, m.team1_p2, m.team2_p1, m.team2_p2].includes(p.id)
+      )
+      if (!played) continue
+      streak.set(p.id, winnerIds.has(p.id) ? streak.get(p.id) + 1 : 0)
+    }
+  }
+
+  return players
+    .map((p) => ({ player_id: p.id, streak: streak.get(p.id) ?? 0 }))
+    .filter((s) => s.streak > 0)
+    .sort((a, b) => b.streak - a.streak)
+}
+
 // Speelt de volledige sessiegeschiedenis chronologisch af en geeft alle momenten
 // terug waarop een speler aan de criteria van een badge voldeed (met de datum van
 // de sessie waarin dat gebeurde). Voor stapelbare badges komt elke keer dat de
