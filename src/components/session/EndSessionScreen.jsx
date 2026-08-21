@@ -3,6 +3,7 @@ import { supabase } from '../../supabaseClient'
 import { computeSessionRanking, computeRankingFromMatches, assignPositions } from '../../utils/tournament'
 import ConfirmDialog from '../shared/ConfirmDialog'
 import PlayerAvatar from '../shared/PlayerAvatar'
+import SessionPhoto from './SessionPhoto'
 
 function RankingTable({ title, ranking, columns }) {
   return (
@@ -44,12 +45,13 @@ function RankingTable({ title, ranking, columns }) {
   )
 }
 
-export default function EndSessionScreen({ session, players, onBack, onEdit, onReactivate }) {
+export default function EndSessionScreen({ session, players, onBack, onEdit, onReactivate, newAchievements = [] }) {
   const [matches, setMatches] = useState([])
   const [sessionPoppers, setSessionPoppers] = useState([])
   const [loading, setLoading] = useState(true)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [photoUrl, setPhotoUrl] = useState(session.photo_url ?? null)
 
   const fetchData = useCallback(async () => {
     const [{ data: matchData }, { data: popperData }] = await Promise.all([
@@ -64,6 +66,10 @@ export default function EndSessionScreen({ session, players, onBack, onEdit, onR
   useEffect(() => {
     fetchData()
   }, [fetchData])
+
+  useEffect(() => {
+    setPhotoUrl(session.photo_url ?? null)
+  }, [session.id, session.photo_url])
 
   const handleDelete = async () => {
     setDeleting(true)
@@ -122,6 +128,29 @@ export default function EndSessionScreen({ session, players, onBack, onEdit, onR
           {dateStr}{session.location ? ` · ${session.location}` : ''}
         </p>
       </div>
+
+      <SessionPhoto sessionId={session.id} photoUrl={photoUrl} onUpdated={setPhotoUrl} />
+
+      {/* Nieuwe achievements van deze sessie */}
+      {newAchievements.length > 0 && (
+        <div className="bg-amber-50 rounded-2xl border border-amber-200 p-4 mb-6">
+          <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-3">🎉 Nieuwe achievements</p>
+          <div className="flex flex-wrap gap-2">
+            {newAchievements.map((a) => (
+              <div
+                key={`${a.player_id}-${a.achievement_key}`}
+                className="flex items-center gap-2 bg-white border border-amber-200 rounded-xl px-3 py-2"
+              >
+                <span className="text-xl">{a.icon}</span>
+                <div className="leading-tight">
+                  <p className="text-sm font-semibold text-gray-900">{a.playerName}</p>
+                  <p className="text-xs text-gray-500">{a.label}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Spelersvolgorde */}
       {session.player_order?.length === 5 && (

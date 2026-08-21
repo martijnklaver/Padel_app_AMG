@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase, subscribeToSessions, preloadAvatars } from './supabaseClient'
+import { supabase, subscribeToSessions, preloadAvatars, syncAchievements } from './supabaseClient'
 import LoadingSpinner from './components/shared/LoadingSpinner'
+import AchievementToasts from './components/shared/AchievementToasts'
 import HomeScreen from './components/home/HomeScreen'
 import ActiveSessionScreen from './components/session/ActiveSessionScreen'
 import EndSessionScreen from './components/session/EndSessionScreen'
@@ -17,6 +18,8 @@ export default function App() {
   const [editedSession, setEditedSession] = useState(null)
   const [showSplash, setShowSplash] = useState(false)
   const [pendingEndSession, setPendingEndSession] = useState(null)
+  const [newAchievements, setNewAchievements] = useState([])
+  const [toasts, setToasts] = useState([])
 
   const loadInitialData = useCallback(async () => {
     const [{ data: playersData }, { data: activeData }] = await Promise.all([
@@ -77,10 +80,25 @@ export default function App() {
     setActiveSession(null)
     setShowSplash(true)
     setActiveTab('active')
+    setNewAchievements([])
+
+    syncAchievements(players).then((newly) => {
+      if (newly.length === 0) return
+      setNewAchievements(newly)
+      setToasts((prev) => [
+        ...prev,
+        ...newly.map((a) => ({ id: `${a.player_id}-${a.achievement_key}`, icon: a.icon, playerName: a.playerName, label: a.label })),
+      ])
+    })
+  }
+
+  const dismissToast = (id) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id))
   }
 
   const handleBackToHome = () => {
     setEndedSession(null)
+    setNewAchievements([])
     setActiveTab('home')
   }
 
@@ -131,6 +149,7 @@ export default function App() {
               setEndedSession(session)
               setActiveSession(null)
               setEditedSession(null)
+              setNewAchievements([])
               setActiveTab('active')
             }
           }}
@@ -156,6 +175,7 @@ export default function App() {
             onBack={handleBackToHome}
             onEdit={handleEditSession}
             onReactivate={handleReactivate}
+            newAchievements={newAchievements}
           />
         )
       }
@@ -192,6 +212,8 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
+      <AchievementToasts toasts={toasts} onDismiss={dismissToast} />
+
       {/* Leipe Marty splash — toont 3 sec na afloop sessie */}
       {showSplash && (
         <div

@@ -13,11 +13,20 @@ export default function SessionListItem({ session, players, onClick, onDelete, o
 
   return (
     <div className="card flex items-center gap-3 hover:border-primary/30 transition-colors">
-      <button onClick={onClick} className="flex-1 text-left min-w-0">
-        <p className="font-semibold text-gray-900 text-sm">{dateStr}</p>
-        {session.location && (
-          <p className="text-gray-500 text-xs mt-0.5 truncate">📍 {session.location}</p>
+      <button onClick={onClick} className="flex-1 flex items-center gap-3 text-left min-w-0">
+        {session.photo_url && (
+          <img
+            src={session.photo_url}
+            alt="Picca van de dag"
+            className="w-12 h-12 rounded-lg object-cover shrink-0 border border-gray-100"
+          />
         )}
+        <div className="min-w-0">
+          <p className="font-semibold text-gray-900 text-sm">{dateStr}</p>
+          {session.location && (
+            <p className="text-gray-500 text-xs mt-0.5 truncate">📍 {session.location}</p>
+          )}
+        </div>
       </button>
 
       <div className="flex items-center gap-1 shrink-0">
