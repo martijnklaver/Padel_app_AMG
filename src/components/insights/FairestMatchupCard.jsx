@@ -20,22 +20,22 @@ export default function FairestMatchupCard({ players, matches }) {
         {matchups.slice(0, 5).map((m, i) => (
           <div
             key={m.team1Ids.join('-') + '|' + m.team2Ids.join('-')}
-            className={`flex items-center justify-between py-2 text-sm ${
+            className={`flex items-center justify-between gap-2 py-2 ${
               i < matchups.length - 1 ? 'border-b border-gray-50' : ''
             }`}
           >
-            <div className="text-gray-700 text-xs">
-              <span className={i === 0 ? 'font-semibold text-primary' : ''}>
+            <div className="flex items-center gap-1.5 text-xs flex-wrap min-w-0">
+              <span className="px-2 py-1 rounded-lg bg-blue-50 text-blue-700 font-medium whitespace-nowrap">
                 {m.team1Names.join(' & ')}
               </span>
-              <span className="text-gray-300 mx-1">vs</span>
-              <span className={i === 0 ? 'font-semibold text-primary' : ''}>
+              <span className="text-gray-300">vs</span>
+              <span className="px-2 py-1 rounded-lg bg-orange-50 text-orange-700 font-medium whitespace-nowrap">
                 {m.team2Names.join(' & ')}
               </span>
             </div>
             <div className="text-right shrink-0 ml-2">
-              <div className={`font-semibold text-sm ${i === 0 ? 'text-primary' : 'text-gray-700'}`}>
-                Δ {m.avgDiff}
+              <div className="font-semibold text-sm text-green-600">
+                Δ{m.avgDiff}
               </div>
               <div className="text-gray-400 text-xs">{m.played}×</div>
             </div>

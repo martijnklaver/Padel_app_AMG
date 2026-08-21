@@ -14,7 +14,7 @@ export default function PopperStatsCard({ players, sessions, matches, poppers })
     return (
       <div className="card">
         <h3 className="font-semibold text-gray-700 mb-2">🎾 Popper stats</h3>
-        <p className="text-gray-400 text-sm">Nog geen poppers geregistreerd</p>
+        <p className="text-gray-400 text-sm">Geen poppers in deze sessies</p>
       </div>
     )
   }

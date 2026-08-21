@@ -31,6 +31,29 @@ const SESSION_TYPE_OPTIONS = [
   { label: '4 spelers', value: 4 },
 ]
 
+function FilterGroup({ label, options, value, onChange }) {
+  return (
+    <div className="mb-4 last:mb-0">
+      <p className="text-xs text-gray-500 mb-2">{label}</p>
+      <div className="flex flex-wrap gap-1.5">
+        {options.map((opt) => (
+          <button
+            key={String(opt.value)}
+            onClick={() => onChange(opt.value)}
+            className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-all ${
+              value === opt.value
+                ? 'bg-primary text-white border-primary'
+                : 'bg-white text-gray-600 border-gray-200 hover:border-primary/40'
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function InsightsScreen({ players, onBack }) {
   const [matches, setMatches] = useState([])
   const [sessions, setSessions] = useState([])
@@ -40,6 +63,7 @@ export default function InsightsScreen({ players, onBack }) {
   const [scoreModeFilter, setScoreModeFilter] = useState(null)
   const [onlyComplete, setOnlyComplete] = useState(false)
   const [sessionTypeFilter, setSessionTypeFilter] = useState(null)
+  const [filtersOpen, setFiltersOpen] = useState(false)
 
   const fetchData = useCallback(async () => {
     const [{ data: allMatches }, { data: allSessions }, { data: allPoppers }] = await Promise.all([
@@ -74,6 +98,25 @@ export default function InsightsScreen({ players, onBack }) {
   const filteredMatches = matches.filter((m) => filteredSessionIds.has(m.session_id))
   const filteredPoppers = poppers.filter((p) => filteredSessionIds.has(p.session_id))
 
+  const activeChips = [
+    sessionLimit !== null && {
+      label: LIMIT_OPTIONS.find((o) => o.value === sessionLimit)?.label,
+      reset: () => setSessionLimit(null),
+    },
+    scoreModeFilter !== null && {
+      label: SCORE_MODE_FILTER_OPTIONS.find((o) => o.value === scoreModeFilter)?.label,
+      reset: () => setScoreModeFilter(null),
+    },
+    sessionTypeFilter !== null && {
+      label: SESSION_TYPE_OPTIONS.find((o) => o.value === sessionTypeFilter)?.label,
+      reset: () => setSessionTypeFilter(null),
+    },
+    onlyComplete && {
+      label: 'Alleen volledig',
+      reset: () => setOnlyComplete(false),
+    },
+  ].filter(Boolean)
+
   return (
     <div className="max-w-lg mx-auto p-4">
       <div className="flex items-center gap-3 mb-4 pt-2">
@@ -89,91 +132,57 @@ export default function InsightsScreen({ players, onBack }) {
         <h2 className="text-xl font-bold text-gray-900">Inzichten</h2>
       </div>
 
-      {/* Session filter */}
-      <div className="mb-5">
-        <p className="text-xs text-gray-500 mb-2">Toon inzichten over:</p>
-        <div className="flex flex-wrap gap-1.5">
-          {LIMIT_OPTIONS.map((opt) => (
-            <button
-              key={String(opt.value)}
-              onClick={() => setSessionLimit(opt.value)}
-              className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-all ${
-                sessionLimit === opt.value
-                  ? 'bg-primary text-white border-primary'
-                  : 'bg-white text-gray-600 border-gray-200 hover:border-primary/40'
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
+      {/* Per sessie terugkijken — bovenaan, niet onderaan verstopt */}
+      {!loading && (
+        <div className="mb-5">
+          <SessionReplayCard sessions={filteredSessions} players={players} />
         </div>
-      </div>
+      )}
 
-      {/* Score modus filter */}
+      {/* Filters */}
       <div className="mb-5">
-        <p className="text-xs text-gray-500 mb-2">Score modus:</p>
-        <div className="flex flex-wrap gap-1.5">
-          {SCORE_MODE_FILTER_OPTIONS.map((opt) => (
-            <button
-              key={String(opt.value)}
-              onClick={() => setScoreModeFilter(opt.value)}
-              className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-all ${
-                scoreModeFilter === opt.value
-                  ? 'bg-primary text-white border-primary'
-                  : 'bg-white text-gray-600 border-gray-200 hover:border-primary/40'
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      </div>
+        <button
+          onClick={() => setFiltersOpen((v) => !v)}
+          className="flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-primary transition-colors"
+        >
+          🔧 Filters <span className="text-xs">{filtersOpen ? '▲' : '▼'}</span>
+        </button>
 
-      {/* Aantal spelers filter (sessieniveau) */}
-      <div className="mb-5">
-        <p className="text-xs text-gray-500 mb-2">Aantal spelers:</p>
-        <div className="flex flex-wrap gap-1.5">
-          {SESSION_TYPE_OPTIONS.map((opt) => (
-            <button
-              key={String(opt.value)}
-              onClick={() => setSessionTypeFilter(opt.value)}
-              className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-all ${
-                sessionTypeFilter === opt.value
-                  ? 'bg-primary text-white border-primary'
-                  : 'bg-white text-gray-600 border-gray-200 hover:border-primary/40'
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      </div>
+        {activeChips.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            {activeChips.map((chip, i) => (
+              <span
+                key={i}
+                className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary px-2 py-1 rounded-full"
+              >
+                {chip.label}
+                <button
+                  onClick={chip.reset}
+                  className="font-bold leading-none hover:text-primary-hover"
+                  title="Filter resetten"
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
 
-      {/* Volledigheid filter */}
-      <div className="mb-5">
-        <p className="text-xs text-gray-500 mb-2">Volledigheid:</p>
-        <div className="flex flex-wrap gap-1.5">
-          {COMPLETENESS_OPTIONS.map((opt) => (
-            <button
-              key={String(opt.value)}
-              onClick={() => setOnlyComplete(opt.value)}
-              className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-all ${
-                onlyComplete === opt.value
-                  ? 'bg-primary text-white border-primary'
-                  : 'bg-white text-gray-600 border-gray-200 hover:border-primary/40'
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
+        {filtersOpen && (
+          <div className="mt-3 bg-white border border-gray-100 rounded-2xl p-4">
+            <FilterGroup label="Toon inzichten over:" options={LIMIT_OPTIONS} value={sessionLimit} onChange={setSessionLimit} />
+            <FilterGroup label="Score modus:" options={SCORE_MODE_FILTER_OPTIONS} value={scoreModeFilter} onChange={setScoreModeFilter} />
+            <FilterGroup label="Aantal spelers:" options={SESSION_TYPE_OPTIONS} value={sessionTypeFilter} onChange={setSessionTypeFilter} />
+            <FilterGroup label="Volledigheid:" options={COMPLETENESS_OPTIONS} value={onlyComplete} onChange={setOnlyComplete} />
+          </div>
+        )}
       </div>
 
       {loading ? (
         <p className="text-center text-gray-400 py-12">Laden...</p>
       ) : (
         <div className="space-y-4">
-          <OverallStatsCard players={players} matches={filteredMatches} scoreModeFilter={scoreModeFilter} />
+          <OverallStatsCard players={players} matches={filteredMatches} sessions={filteredSessions} scoreModeFilter={scoreModeFilter} />
           <PopperStatsCard
             players={players}
             sessions={filteredSessions}
@@ -183,7 +192,6 @@ export default function InsightsScreen({ players, onBack }) {
           <PerformanceChart players={players} sessions={filteredSessions} matches={filteredMatches} scoreModeFilter={scoreModeFilter} />
           <BestDuoCard players={players} matches={filteredMatches} scoreModeFilter={scoreModeFilter} />
           <FairestMatchupCard players={players} matches={filteredMatches} />
-          <SessionReplayCard sessions={filteredSessions} players={players} />
         </div>
       )}
     </div>
