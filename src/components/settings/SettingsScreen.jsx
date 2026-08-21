@@ -5,8 +5,8 @@ import { ACHIEVEMENTS, STACKABLE_ACHIEVEMENT_KEYS, computeAchievementEvents, sum
 import PlayerAvatar from '../shared/PlayerAvatar'
 import AchievementsOverviewScreen from './AchievementsOverviewScreen'
 
-const GOLD = '#FFD700'
-const ORANGE = '#EF7D2D'
+const GOLD_GRADIENT = 'linear-gradient(145deg, #FFE873, #FFD700 55%, #E6BE00)'
+const ORANGE_GRADIENT = 'linear-gradient(145deg, #FF9F5A, #EF7D2D 55%, #D9661C)'
 
 const dateStr = (d) =>
   new Date(d).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -18,56 +18,55 @@ const clampStyle = {
   overflow: 'hidden',
 }
 
+// Echte "medaille"-vormige badge: rond, met rand + schaduw voor diepte, teller
+// als los bolletje erop, en klik-uitleg als los balloontje (net als op de
+// achievements-overzichtpagina) i.p.v. een uitklappende rij.
 function AchievementBadge({ meta, earned, stackable }) {
-  const [expanded, setExpanded] = useState(false)
+  const [showTooltip, setShowTooltip] = useState(false)
 
   if (!earned) return null
 
-  const bg = stackable ? ORANGE : GOLD
-  const textClass = stackable ? 'text-white' : 'text-gray-900'
+  const gradient = stackable ? ORANGE_GRADIENT : GOLD_GRADIENT
+  const iconTextClass = stackable ? 'text-white' : 'text-gray-900'
 
-  if (!expanded) {
-    return (
+  return (
+    <div className="relative flex flex-col items-center gap-1">
       <button
         type="button"
-        onClick={() => setExpanded(true)}
-        className={`relative flex flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 text-center hover:brightness-95 transition-[filter] ${textClass}`}
-        style={{ backgroundColor: bg }}
+        onClick={() => setShowTooltip((v) => !v)}
+        className={`relative w-12 h-12 rounded-full ring-2 ring-white shadow-md flex items-center justify-center text-xl hover:scale-105 active:scale-95 transition-transform ${iconTextClass}`}
+        style={{ background: gradient }}
       >
+        {meta.icon}
         {stackable && earned.count > 1 && (
-          <span className="absolute top-0.5 right-0.5 bg-red-500 text-white text-[9px] font-bold w-3.5 h-3.5 rounded-full flex items-center justify-center leading-none">
+          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center leading-none ring-2 ring-white">
             {earned.count}
           </span>
         )}
-        <span className="text-base leading-none">{meta.icon}</span>
-        <span className="text-[9px] font-semibold leading-tight" style={clampStyle}>{meta.label}</span>
       </button>
-    )
-  }
+      <span className="text-[9px] font-medium text-gray-600 text-center leading-tight w-full" style={clampStyle}>
+        {meta.label}
+      </span>
 
-  return (
-    <button
-      type="button"
-      onClick={() => setExpanded(false)}
-      className={`col-span-3 text-left rounded-xl px-3 py-2 ${textClass}`}
-      style={{ backgroundColor: bg }}
-    >
-      <p className="text-xs font-bold flex items-center gap-1.5">
-        {meta.icon} {meta.label}{stackable && earned.count > 1 ? ` ×${earned.count}` : ''}
-      </p>
-      {meta.description && (
-        <p className={`text-[11px] mt-1 ${stackable ? 'text-white/90' : 'text-gray-700'}`}>{meta.description}</p>
+      {showTooltip && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setShowTooltip(false)} />
+          <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 z-20 bg-gray-900 text-white text-[11px] rounded-lg px-3 py-2 w-40 shadow-lg text-center">
+            <p className="font-semibold">{meta.label}{stackable && earned.count > 1 ? ` ×${earned.count}` : ''}</p>
+            {meta.description && <p className="text-white/80 mt-0.5">{meta.description}</p>}
+            <p className="text-white/60 mt-1">
+              Eerste keer: {dateStr(earned.firstAchievedAt)}
+              {earned.count > 1 && (
+                <>
+                  <br />
+                  Laatste keer: {dateStr(earned.lastAchievedAt)}
+                </>
+              )}
+            </p>
+          </div>
+        </>
       )}
-      <p className={`text-[10px] mt-1 ${stackable ? 'text-white/75' : 'text-gray-600'}`}>
-        Eerste keer: {dateStr(earned.firstAchievedAt)}
-        {earned.count > 1 && (
-          <>
-            <br />
-            Laatste keer: {dateStr(earned.lastAchievedAt)}
-          </>
-        )}
-      </p>
-    </button>
+    </div>
   )
 }
 
