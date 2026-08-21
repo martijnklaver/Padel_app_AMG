@@ -7,30 +7,45 @@ function toSetDetails(entries) {
       const w = parseInt(e.s1) > parseInt(e.s2) ? 1 : 2
       return { supertiebreak: true, team1: w === 1 ? 1 : 0, team2: w === 2 ? 1 : 0 }
     }
-    return { set: i + 1, team1: parseInt(e.s1), team2: parseInt(e.s2), tiebreak: !!e.tiebreak }
+    if (e.s1 === '6' && e.s2 === '6') {
+      const w = e.tiebreakWinner
+      return { set: i + 1, team1: w === 1 ? 7 : 6, team2: w === 2 ? 7 : 6, tiebreak: true }
+    }
+    return { set: i + 1, team1: parseInt(e.s1), team2: parseInt(e.s2), tiebreak: false }
   })
 }
 
 function entriesFromSetDetails(setDetails) {
-  if (!setDetails?.length) return [{ type: 'set', s1: '', s2: '', tiebreak: false }]
+  if (!setDetails?.length) return [{ type: 'set', s1: '', s2: '', tiebreakWinner: null }]
   return setDetails.map((s) =>
     s.supertiebreak
       ? { type: 'supertiebreak', s1: String(s.team1 === 1 ? 1 : 0), s2: String(s.team2 === 1 ? 1 : 0) }
-      : { type: 'set', s1: String(s.team1), s2: String(s.team2), tiebreak: !!s.tiebreak }
+      : s.tiebreak
+        ? { type: 'set', s1: '6', s2: '6', tiebreakWinner: s.team1 > s.team2 ? 1 : 2 }
+        : { type: 'set', s1: String(s.team1), s2: String(s.team2), tiebreakWinner: null }
   )
 }
 
 const majorityFor = (setsFormat) => Math.floor(setsFormat / 2) + 1
 
-// Games & Sets — invoer voor 4-spelers wedstrijden: per set een score, optionele
-// tiebreak-markering, en bij gelijke stand een keuze tussen een volgende set of supertiebreak.
+// Games & Sets — invoer voor 4-spelers wedstrijden: één wedstrijd, meerdere sets.
+// Bij 6-6 in een set verschijnt automatisch de tiebreak-keuze (winnaar telt, de set
+// wordt geregistreerd als 7-6). Bij gelijke stand na de helft van het setsformaat
+// kan de beslissende set of een supertiebreak worden gespeeld.
 export default function SetsEditor({ setsFormat, initialSetDetails, onChange }) {
   const [entries, setEntries] = useState(() => entriesFromSetDetails(initialSetDetails))
 
   const update = (next) => setEntries(next)
 
   const updateField = (i, field, value) => {
-    update(entries.map((e, idx) => (idx === i ? { ...e, [field]: value } : e)))
+    update(entries.map((e, idx) => {
+      if (idx !== i) return e
+      const next = { ...e, [field]: value }
+      if ((field === 's1' || field === 's2') && !(next.s1 === '6' && next.s2 === '6')) {
+        next.tiebreakWinner = null
+      }
+      return next
+    }))
   }
 
   const removeLast = () => {
@@ -39,11 +54,13 @@ export default function SetsEditor({ setsFormat, initialSetDetails, onChange }) 
   }
 
   const addEntry = (type) => {
-    update([...entries, { type, s1: '', s2: '', tiebreak: false }])
+    update([...entries, { type, s1: '', s2: '', tiebreakWinner: null }])
   }
 
-  const isFilled = (e) =>
-    e.s1 !== '' && e.s2 !== '' && !isNaN(parseInt(e.s1)) && !isNaN(parseInt(e.s2)) && parseInt(e.s1) !== parseInt(e.s2)
+  const isFilled = (e) => {
+    if (e.type === 'set' && e.s1 === '6' && e.s2 === '6') return e.tiebreakWinner != null
+    return e.s1 !== '' && e.s2 !== '' && !isNaN(parseInt(e.s1)) && !isNaN(parseInt(e.s2)) && parseInt(e.s1) !== parseInt(e.s2)
+  }
 
   const lastEntry = entries[entries.length - 1]
   const lastFilled = isFilled(lastEntry)
@@ -81,52 +98,70 @@ export default function SetsEditor({ setsFormat, initialSetDetails, onChange }) 
 
   return (
     <div className="space-y-2">
-      {entries.map((e, i) => (
-        <div key={i} className="flex items-center gap-2">
-          <span className="w-24 text-xs font-medium text-gray-500 shrink-0">
-            {e.type === 'supertiebreak' ? 'Supertiebreak' : `Set ${i + 1}`}
-          </span>
-          <input
-            type="number"
-            min="0"
-            value={e.s1}
-            onChange={(ev) => updateField(i, 's1', ev.target.value)}
-            placeholder="0"
-            className="w-12 h-9 text-sm font-bold text-center border border-gray-200 rounded-lg focus:outline-none focus:border-primary"
-          />
-          <span className="text-gray-300 text-xs shrink-0">–</span>
-          <input
-            type="number"
-            min="0"
-            value={e.s2}
-            onChange={(ev) => updateField(i, 's2', ev.target.value)}
-            placeholder="0"
-            className="w-12 h-9 text-sm font-bold text-center border border-gray-200 rounded-lg focus:outline-none focus:border-primary"
-          />
-          {e.type === 'set' && (
-            <label className="flex items-center gap-1 text-xs text-gray-500 ml-1">
+      {entries.map((e, i) => {
+        const inTiebreak = e.type === 'set' && e.s1 === '6' && e.s2 === '6'
+        return (
+          <div key={i} className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="w-24 text-xs font-medium text-gray-500 shrink-0">
+                {e.type === 'supertiebreak' ? 'Supertiebreak' : `Set ${i + 1}`}
+              </span>
               <input
-                type="checkbox"
-                checked={e.tiebreak}
-                onChange={(ev) => updateField(i, 'tiebreak', ev.target.checked)}
+                type="number"
+                min="0"
+                value={e.s1}
+                onChange={(ev) => updateField(i, 's1', ev.target.value)}
+                placeholder="0"
+                className="w-12 h-9 text-sm font-bold text-center border border-gray-200 rounded-lg focus:outline-none focus:border-primary"
               />
-              Tiebreak
-            </label>
-          )}
-          {i === entries.length - 1 && entries.length > 1 && (
-            <button
-              type="button"
-              onClick={removeLast}
-              className="ml-auto text-gray-300 hover:text-red-500 text-sm leading-none shrink-0"
-              title="Verwijderen"
-            >
-              ×
-            </button>
-          )}
-        </div>
-      ))}
+              <span className="text-gray-300 text-xs shrink-0">–</span>
+              <input
+                type="number"
+                min="0"
+                value={e.s2}
+                onChange={(ev) => updateField(i, 's2', ev.target.value)}
+                placeholder="0"
+                className="w-12 h-9 text-sm font-bold text-center border border-gray-200 rounded-lg focus:outline-none focus:border-primary"
+              />
+              {i === entries.length - 1 && entries.length > 1 && (
+                <button
+                  type="button"
+                  onClick={removeLast}
+                  className="ml-auto text-gray-300 hover:text-red-500 text-sm leading-none shrink-0"
+                  title="Verwijderen"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+            {inTiebreak && (
+              <div className="flex items-center gap-2 pl-1">
+                <span className="text-xs text-amber-600 shrink-0">Tiebreak — wie wint de set?</span>
+                <button
+                  type="button"
+                  onClick={() => updateField(i, 'tiebreakWinner', 1)}
+                  className={`text-xs px-2 py-1 rounded-lg border font-medium transition-colors ${
+                    e.tiebreakWinner === 1 ? 'bg-primary text-white border-primary' : 'border-gray-200 text-gray-600 hover:border-primary/40'
+                  }`}
+                >
+                  Team 1
+                </button>
+                <button
+                  type="button"
+                  onClick={() => updateField(i, 'tiebreakWinner', 2)}
+                  className={`text-xs px-2 py-1 rounded-lg border font-medium transition-colors ${
+                    e.tiebreakWinner === 2 ? 'bg-primary text-white border-primary' : 'border-gray-200 text-gray-600 hover:border-primary/40'
+                  }`}
+                >
+                  Team 2
+                </button>
+              </div>
+            )}
+          </div>
+        )
+      })}
 
-      {lastEntry.s1 !== '' && lastEntry.s2 !== '' && !isFilled(lastEntry) && (
+      {lastEntry.s1 !== '' && lastEntry.s2 !== '' && !isFilled(lastEntry) && !(lastEntry.type === 'set' && lastEntry.s1 === '6' && lastEntry.s2 === '6') && (
         <p className="text-amber-500 text-xs">Score kan niet gelijk zijn</p>
       )}
 
@@ -137,7 +172,7 @@ export default function SetsEditor({ setsFormat, initialSetDetails, onChange }) 
             onClick={() => addEntry('set')}
             className="flex-1 text-xs py-1.5 rounded-lg border border-dashed border-gray-300 text-gray-500 hover:border-primary/40 hover:text-primary"
           >
-            + Set {regularSetsPlayed + 1} toevoegen
+            + Volgende set
           </button>
           {tied && regularSetsPlayed >= 2 && (
             <button
