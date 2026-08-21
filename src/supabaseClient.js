@@ -135,6 +135,56 @@ export async function syncAchievements(players) {
   })
 }
 
+// Herberekent alle achievements met terugwerkende kracht: wist de volledige
+// achievements-tabel en bouwt 'm opnieuw op door de complete sessiegeschiedenis
+// (oudste eerst) chronologisch af te spelen. Nuttig na wijzigingen aan de
+// achievement-regels, om te garanderen dat opgeslagen counts/datums exact
+// overeenkomen met wat de huidige logica zou berekenen — in tegenstelling tot
+// syncAchievements(), dat alleen incrementeel bijwerkt.
+export async function runHistoricalAchievements() {
+  const [{ data: players }, { data: sessions }, { data: matches }, { data: poppers }] = await Promise.all([
+    supabase.from('players').select('*'),
+    supabase.from('sessions').select('*').eq('is_completed', true).order('date', { ascending: true }),
+    supabase.from('matches').select('*').eq('is_completed', true),
+    supabase.from('poppers').select('*'),
+  ])
+
+  const { error: delError } = await supabase.from('achievements').delete().not('id', 'is', null)
+  if (delError) {
+    console.error('[achievements] delete error:', delError)
+    throw delError
+  }
+
+  const events = computeAchievementEvents(players ?? [], sessions ?? [], matches ?? [], poppers ?? [])
+  const summary = summarizeAchievements(events)
+
+  const rows = summary.map((s) => ({
+    player_id: s.player_id,
+    achievement_key: s.achievement_key,
+    achieved_at: s.lastAchievedAt,
+    count: s.count,
+  }))
+
+  if (rows.length > 0) {
+    const { error: insError } = await supabase.from('achievements').insert(rows)
+    if (insError) {
+      console.error('[achievements] insert error:', insError)
+      throw insError
+    }
+  }
+
+  const perPlayer = new Map()
+  summary.forEach((s) => {
+    perPlayer.set(s.player_id, (perPlayer.get(s.player_id) ?? 0) + 1)
+  })
+  console.log(`[achievements] ${rows.length} achievement-rijen opgeslagen (${events.length} events verwerkt over ${(sessions ?? []).length} sessies).`)
+  ;(players ?? []).forEach((p) => {
+    console.log(`[achievements]   ${p.name}: ${perPlayer.get(p.id) ?? 0} verschillende achievements`)
+  })
+
+  return summary
+}
+
 export async function uploadSessionPhoto(sessionId, file) {
   const path = `${sessionId}.jpg`
   const arrayBuffer = await file.arrayBuffer()
