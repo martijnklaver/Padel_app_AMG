@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../supabaseClient'
-import { SCORE_MODES } from '../../utils/scoreModes'
 import OverallStatsCard from './OverallStatsCard'
 import PerformanceChart from './PerformanceChart'
 import BestDuoCard from './BestDuoCard'
@@ -9,41 +8,43 @@ import SessionReplayCard from './SessionReplayCard'
 import PopperStatsCard from './PopperStatsCard'
 
 const LIMIT_OPTIONS = [
-  { label: 'Alle sessies', value: null },
+  { label: 'Alle', value: null },
   { label: 'Laatste 3', value: 3 },
   { label: 'Laatste 5', value: 5 },
   { label: 'Laatste 10', value: 10 },
 ]
 
 const SCORE_MODE_FILTER_OPTIONS = [
-  { label: 'Alle potjes', value: null },
-  ...SCORE_MODES.map(({ value, label }) => ({ value, label })),
-]
-
-const COMPLETENESS_OPTIONS = [
-  { label: 'Alle sessies', value: false },
-  { label: 'Alleen volledige sessies', value: true },
+  { label: 'Alle', value: null },
+  { label: 'Punten', value: 'points' },
+  { label: 'Games', value: 'games' },
+  { label: 'Sets', value: 'games_sets' },
 ]
 
 const SESSION_TYPE_OPTIONS = [
-  { label: 'Alle sessies', value: null },
+  { label: 'Alle', value: null },
   { label: '5 spelers', value: 5 },
   { label: '4 spelers', value: 4 },
 ]
 
-function FilterGroup({ label, options, value, onChange }) {
+const COMPLETENESS_OPTIONS = [
+  { label: 'Alle', value: false },
+  { label: 'Alleen volledig', value: true },
+]
+
+function FilterChipRow({ label, options, value, onChange }) {
   return (
-    <div className="mb-4 last:mb-0">
-      <p className="text-xs text-gray-500 mb-2">{label}</p>
+    <div className="flex items-start gap-2 flex-wrap">
+      <span className="text-xs text-gray-400 pt-1 w-16 shrink-0">{label}</span>
       <div className="flex flex-wrap gap-1.5">
         {options.map((opt) => (
           <button
             key={String(opt.value)}
             onClick={() => onChange(opt.value)}
-            className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-all ${
+            className={`text-sm px-3 py-1 rounded-full font-medium transition-colors ${
               value === opt.value
-                ? 'bg-primary text-white border-primary'
-                : 'bg-white text-gray-600 border-gray-200 hover:border-primary/40'
+                ? 'bg-primary text-white'
+                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
             }`}
           >
             {opt.label}
@@ -63,7 +64,6 @@ export default function InsightsScreen({ players, onBack }) {
   const [scoreModeFilter, setScoreModeFilter] = useState(null)
   const [onlyComplete, setOnlyComplete] = useState(false)
   const [sessionTypeFilter, setSessionTypeFilter] = useState(null)
-  const [filtersOpen, setFiltersOpen] = useState(false)
 
   const fetchData = useCallback(async () => {
     const [{ data: allMatches }, { data: allSessions }, { data: allPoppers }] = await Promise.all([
@@ -98,25 +98,6 @@ export default function InsightsScreen({ players, onBack }) {
   const filteredMatches = matches.filter((m) => filteredSessionIds.has(m.session_id))
   const filteredPoppers = poppers.filter((p) => filteredSessionIds.has(p.session_id))
 
-  const activeChips = [
-    sessionLimit !== null && {
-      label: LIMIT_OPTIONS.find((o) => o.value === sessionLimit)?.label,
-      reset: () => setSessionLimit(null),
-    },
-    scoreModeFilter !== null && {
-      label: SCORE_MODE_FILTER_OPTIONS.find((o) => o.value === scoreModeFilter)?.label,
-      reset: () => setScoreModeFilter(null),
-    },
-    sessionTypeFilter !== null && {
-      label: SESSION_TYPE_OPTIONS.find((o) => o.value === sessionTypeFilter)?.label,
-      reset: () => setSessionTypeFilter(null),
-    },
-    onlyComplete && {
-      label: 'Alleen volledig',
-      reset: () => setOnlyComplete(false),
-    },
-  ].filter(Boolean)
-
   return (
     <div className="max-w-lg mx-auto p-4">
       <div className="flex items-center gap-3 mb-4 pt-2">
@@ -132,50 +113,12 @@ export default function InsightsScreen({ players, onBack }) {
         <h2 className="text-xl font-bold text-gray-900">Inzichten</h2>
       </div>
 
-      {/* Per sessie terugkijken — bovenaan, niet onderaan verstopt */}
-      {!loading && (
-        <div className="mb-5">
-          <SessionReplayCard sessions={filteredSessions} players={players} />
-        </div>
-      )}
-
-      {/* Filters */}
-      <div className="mb-5">
-        <button
-          onClick={() => setFiltersOpen((v) => !v)}
-          className="flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-primary transition-colors"
-        >
-          🔧 Filters <span className="text-xs">{filtersOpen ? '▲' : '▼'}</span>
-        </button>
-
-        {activeChips.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mt-2">
-            {activeChips.map((chip, i) => (
-              <span
-                key={i}
-                className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary px-2 py-1 rounded-full"
-              >
-                {chip.label}
-                <button
-                  onClick={chip.reset}
-                  className="font-bold leading-none hover:text-primary-hover"
-                  title="Filter resetten"
-                >
-                  ×
-                </button>
-              </span>
-            ))}
-          </div>
-        )}
-
-        {filtersOpen && (
-          <div className="mt-3 bg-white border border-gray-100 rounded-2xl p-4">
-            <FilterGroup label="Toon inzichten over:" options={LIMIT_OPTIONS} value={sessionLimit} onChange={setSessionLimit} />
-            <FilterGroup label="Score modus:" options={SCORE_MODE_FILTER_OPTIONS} value={scoreModeFilter} onChange={setScoreModeFilter} />
-            <FilterGroup label="Aantal spelers:" options={SESSION_TYPE_OPTIONS} value={sessionTypeFilter} onChange={setSessionTypeFilter} />
-            <FilterGroup label="Volledigheid:" options={COMPLETENESS_OPTIONS} value={onlyComplete} onChange={setOnlyComplete} />
-          </div>
-        )}
+      {/* Filters — altijd zichtbaar, compact */}
+      <div className="mb-5 space-y-2">
+        <FilterChipRow label="Periode" options={LIMIT_OPTIONS} value={sessionLimit} onChange={setSessionLimit} />
+        <FilterChipRow label="Modus" options={SCORE_MODE_FILTER_OPTIONS} value={scoreModeFilter} onChange={setScoreModeFilter} />
+        <FilterChipRow label="Spelers" options={SESSION_TYPE_OPTIONS} value={sessionTypeFilter} onChange={setSessionTypeFilter} />
+        <FilterChipRow label="Volledigheid" options={COMPLETENESS_OPTIONS} value={onlyComplete} onChange={setOnlyComplete} />
       </div>
 
       {loading ? (
@@ -192,6 +135,7 @@ export default function InsightsScreen({ players, onBack }) {
           <PerformanceChart players={players} sessions={filteredSessions} matches={filteredMatches} scoreModeFilter={scoreModeFilter} />
           <BestDuoCard players={players} matches={filteredMatches} scoreModeFilter={scoreModeFilter} />
           <FairestMatchupCard players={players} matches={filteredMatches} />
+          <SessionReplayCard sessions={filteredSessions} players={players} />
         </div>
       )}
     </div>
