@@ -173,15 +173,15 @@ export default function InsightsScreen({ players, onBack }) {
         <p className="text-center text-gray-400 py-12">Laden...</p>
       ) : (
         <div className="space-y-4">
-          <OverallStatsCard players={players} matches={filteredMatches} />
+          <OverallStatsCard players={players} matches={filteredMatches} scoreModeFilter={scoreModeFilter} />
           <PopperStatsCard
             players={players}
             sessions={filteredSessions}
             matches={filteredMatches}
             poppers={filteredPoppers}
           />
-          <PerformanceChart players={players} sessions={filteredSessions} matches={filteredMatches} />
-          <BestDuoCard players={players} matches={filteredMatches} />
+          <PerformanceChart players={players} sessions={filteredSessions} matches={filteredMatches} scoreModeFilter={scoreModeFilter} />
+          <BestDuoCard players={players} matches={filteredMatches} scoreModeFilter={scoreModeFilter} />
           <FairestMatchupCard players={players} matches={filteredMatches} />
           <SessionReplayCard sessions={filteredSessions} players={players} />
         </div>

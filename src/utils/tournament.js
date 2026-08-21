@@ -296,6 +296,47 @@ export function computeBestDuo(players, allMatches) {
     })
 }
 
+// Punten-modus variant van computeBestDuo — win% op basis van gescoorde punten
+// als team, in plaats van gewonnen/verloren potjes.
+export function computeBestDuoByPoints(players, allMatches) {
+  const duoStats = new Map()
+
+  const key = (id1, id2) => [id1, id2].sort().join('|')
+
+  for (const m of allMatches) {
+    if (!m.is_completed) continue
+
+    const total = (m.score_team1 ?? 0) + (m.score_team2 ?? 0)
+    const pairs = [
+      { ids: [m.team1_p1, m.team1_p2], pointsWon: m.score_team1 ?? 0 },
+      { ids: [m.team2_p1, m.team2_p2], pointsWon: m.score_team2 ?? 0 },
+    ]
+
+    for (const { ids, pointsWon } of pairs) {
+      const k = key(ids[0], ids[1])
+      if (!duoStats.has(k)) duoStats.set(k, { ids, pointsWon: 0, pointsPlayed: 0, played: 0 })
+      const s = duoStats.get(k)
+      s.pointsWon += pointsWon
+      s.pointsPlayed += total
+      s.played++
+    }
+  }
+
+  return [...duoStats.values()]
+    .map((s) => ({
+      ...s,
+      names: s.ids.map((id) => players.find((p) => p.id === id)?.name ?? id),
+      pct: s.pointsPlayed > 0 ? ((s.pointsWon / s.pointsPlayed) * 100).toFixed(1) : null,
+    }))
+    .filter((s) => s.played > 0)
+    .sort((a, b) => {
+      const pa = a.pct !== null ? parseFloat(a.pct) : -Infinity
+      const pb = b.pct !== null ? parseFloat(b.pct) : -Infinity
+      if (pb !== pa) return pb - pa
+      return b.pointsWon - a.pointsWon
+    })
+}
+
 export function computeFairestMatchup(players, allMatches) {
   const matchupStats = new Map()
 

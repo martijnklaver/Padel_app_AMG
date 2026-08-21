@@ -25,8 +25,9 @@ function CustomTooltip({ active, payload, label }) {
   )
 }
 
-export default function PerformanceChart({ players, sessions, matches }) {
+export default function PerformanceChart({ players, sessions, matches, scoreModeFilter }) {
   const [activePlayers, setActivePlayers] = useState(() => new Set(players.map((p) => p.id)))
+  const isPoints = scoreModeFilter === 'points'
 
   const chartSessions = [...sessions].sort((a, b) => a.date.localeCompare(b.date))
 
@@ -44,13 +45,26 @@ export default function PerformanceChart({ players, sessions, matches }) {
         [m.team1_p1, m.team1_p2, m.team2_p1, m.team2_p2].includes(player.id)
       )
       if (pm.length === 0) return
-      const wins = pm.reduce((sum, m) => {
-        const onTeam1 = [m.team1_p1, m.team1_p2].includes(player.id)
-        return sum + (onTeam1 ? m.normalized_score_team1 : m.normalized_score_team2)
-      }, 0)
-      const winPct = parseFloat(((wins / pm.length) * 100).toFixed(1))
-      point[player.id] = winPct
-      point[`${player.id}_detail`] = `${Math.round(wins)}/${pm.length}`
+      if (isPoints) {
+        let pointsWon = 0
+        let pointsPlayed = 0
+        pm.forEach((m) => {
+          const onTeam1 = [m.team1_p1, m.team1_p2].includes(player.id)
+          pointsWon += onTeam1 ? (m.score_team1 ?? 0) : (m.score_team2 ?? 0)
+          pointsPlayed += (m.score_team1 ?? 0) + (m.score_team2 ?? 0)
+        })
+        if (pointsPlayed === 0) return
+        point[player.id] = parseFloat(((pointsWon / pointsPlayed) * 100).toFixed(1))
+        point[`${player.id}_detail`] = `${pointsWon}/${pointsPlayed} pt`
+      } else {
+        const wins = pm.reduce((sum, m) => {
+          const onTeam1 = [m.team1_p1, m.team1_p2].includes(player.id)
+          return sum + (onTeam1 ? m.normalized_score_team1 : m.normalized_score_team2)
+        }, 0)
+        const winPct = parseFloat(((wins / pm.length) * 100).toFixed(1))
+        point[player.id] = winPct
+        point[`${player.id}_detail`] = `${Math.round(wins)}/${pm.length}`
+      }
     })
     return point
   })
@@ -79,7 +93,8 @@ export default function PerformanceChart({ players, sessions, matches }) {
 
   return (
     <div className="card">
-      <h3 className="font-semibold text-gray-700 mb-3">Prestatiegrafiek</h3>
+      <h3 className="font-semibold text-gray-700 mb-1">Prestatiegrafiek</h3>
+      <p className="text-xs text-gray-400 mb-3">Win% ({isPoints ? 'punten' : 'potjes'})</p>
 
       <div className="flex flex-wrap gap-1.5 mb-4">
         {players.map((player, i) => {

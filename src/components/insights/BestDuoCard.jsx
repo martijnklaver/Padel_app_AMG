@@ -1,7 +1,8 @@
-import { computeBestDuo } from '../../utils/tournament'
+import { computeBestDuo, computeBestDuoByPoints } from '../../utils/tournament'
 
-export default function BestDuoCard({ players, matches }) {
-  const duos = computeBestDuo(players, matches)
+export default function BestDuoCard({ players, matches, scoreModeFilter }) {
+  const isPoints = scoreModeFilter === 'points'
+  const duos = isPoints ? computeBestDuoByPoints(players, matches) : computeBestDuo(players, matches)
 
   if (duos.length === 0) {
     return (
@@ -23,18 +24,21 @@ export default function BestDuoCard({ players, matches }) {
             <th className="text-left pb-2 font-medium">#</th>
             <th className="text-left pb-2 font-medium">Duo</th>
             <th className="text-right pb-2 font-medium">Samen</th>
-            <th className="text-right pb-2 font-medium">Win%</th>
+            <th className="text-right pb-2 font-medium">Win% ({isPoints ? 'punten' : 'potjes'})</th>
           </tr>
         </thead>
         <tbody>
-          {duos.map((d, i) => (
-            <tr key={d.ids.join('|')} className={i === 0 ? 'font-bold text-primary' : 'text-gray-700'}>
-              <td className="py-2">{medals[i] ?? i + 1}</td>
-              <td className="py-2">{d.names.join(' & ')}</td>
-              <td className="text-right py-2">{d.played}</td>
-              <td className="text-right py-2">{d.winPct !== null ? `${d.winPct}%` : '–'}</td>
-            </tr>
-          ))}
+          {duos.map((d, i) => {
+            const pct = isPoints ? d.pct : d.winPct
+            return (
+              <tr key={d.ids.join('|')} className={i === 0 ? 'font-bold text-primary' : 'text-gray-700'}>
+                <td className="py-2">{medals[i] ?? i + 1}</td>
+                <td className="py-2">{d.names.join(' & ')}</td>
+                <td className="text-right py-2">{d.played}</td>
+                <td className="text-right py-2">{pct !== null ? `${pct}%` : '–'}</td>
+              </tr>
+            )
+          })}
         </tbody>
       </table>
     </div>
