@@ -14,25 +14,38 @@ function AchievementBadge({ meta, earned }) {
 
   if (!earned) return null
 
-  return (
-    <>
+  const title = `${meta.icon} ${meta.label}${earned.count > 1 ? ` ×${earned.count}` : ''}`
+
+  if (!expanded) {
+    return (
       <button
         type="button"
-        onClick={() => setExpanded((v) => !v)}
+        onClick={() => setExpanded(true)}
         className="text-xs bg-amber-50 text-amber-800 border border-amber-200 px-2 py-1 rounded-full whitespace-nowrap hover:border-amber-400 transition-colors"
       >
-        {meta.icon} {meta.label}{earned.count > 1 ? ` ×${earned.count}` : ''}
+        {title}
       </button>
-      {expanded && (
-        <div className="basis-full text-[11px] text-gray-500 pl-1 -mt-0.5 space-y-0.5">
-          {meta.description && <p>{meta.description}</p>}
-          <p>
-            Eerste keer behaald: {dateStr(earned.firstAchievedAt)}
-            {earned.count > 1 && <> · Laatste keer: {dateStr(earned.lastAchievedAt)} (×{earned.count})</>}
-          </p>
-        </div>
-      )}
-    </>
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => setExpanded(false)}
+      className="basis-full text-left bg-amber-50 text-amber-800 border border-amber-200 rounded-xl px-3 py-2 hover:border-amber-400 transition-colors"
+    >
+      <p className="text-xs font-semibold">{title}</p>
+      {meta.description && <p className="text-[11px] text-amber-700 mt-1">{meta.description}</p>}
+      <p className="text-[11px] text-amber-600 mt-1">
+        Eerste keer: {dateStr(earned.firstAchievedAt)}
+        {earned.count > 1 && (
+          <>
+            <br />
+            Laatste keer: {dateStr(earned.lastAchievedAt)}
+          </>
+        )}
+      </p>
+    </button>
   )
 }
 
