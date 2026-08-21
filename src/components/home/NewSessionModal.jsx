@@ -40,9 +40,8 @@ export default function NewSessionModal({ players, onCreated, onClose, onPlayers
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
   const [uploading, setUploading] = useState({})
-  const [draggingId, setDraggingId] = useState(null)
-  const [dragOffsetY, setDragOffsetY] = useState(0)
-  const dragStartYRef = useRef(0)
+  const [dragOverIndex, setDragOverIndex] = useState(null)
+  const dragIndexRef = useRef(null)
 
   const maxMatches = maxUniqueMatches(selectedIds.length)
 
@@ -86,41 +85,36 @@ export default function NewSessionModal({ players, onCreated, onClose, onPlayers
     )
   }
 
-  // Spelersvolgorde slepen om te herordenen (muis + touch via Pointer Events)
-  useEffect(() => {
-    if (!draggingId) return
+  // Spelersvolgorde slepen om te herordenen (HTML5 drag-and-drop API)
+  const handleDragStart = (index) => {
+    dragIndexRef.current = index
+  }
 
-    const handleMove = (e) => {
-      setDragOffsetY(e.clientY - dragStartYRef.current)
+  const handleDragOver = (e, index) => {
+    e.preventDefault() // vereist om drop op dit element toe te staan
+    if (dragOverIndex !== index) setDragOverIndex(index)
+  }
 
-      const el = document.elementFromPoint(e.clientX, e.clientY)
-      const overId = el?.closest('[data-player-order-id]')?.dataset.playerOrderId
-      if (!overId || overId === draggingId) return
-      setPlayerOrder((prev) => {
-        const from = prev.indexOf(draggingId)
-        const to = prev.indexOf(overId)
-        if (from === -1 || to === -1 || from === to) return prev
-        const next = [...prev]
-        next.splice(from, 1)
-        next.splice(to, 0, draggingId)
-        return next
-      })
+  const handleDrop = (dropIndex) => {
+    const dragIndex = dragIndexRef.current
+    if (dragIndex === null || dragIndex === dropIndex) {
+      setDragOverIndex(null)
+      return
     }
+    setPlayerOrder((prev) => {
+      const newOrder = [...prev]
+      const [draggedItem] = newOrder.splice(dragIndex, 1)
+      newOrder.splice(dropIndex, 0, draggedItem)
+      return newOrder
+    })
+    dragIndexRef.current = null
+    setDragOverIndex(null)
+  }
 
-    const handleUp = () => {
-      setDraggingId(null)
-      setDragOffsetY(0)
-    }
-
-    window.addEventListener('pointermove', handleMove)
-    window.addEventListener('pointerup', handleUp)
-    window.addEventListener('pointercancel', handleUp)
-    return () => {
-      window.removeEventListener('pointermove', handleMove)
-      window.removeEventListener('pointerup', handleUp)
-      window.removeEventListener('pointercancel', handleUp)
-    }
-  }, [draggingId])
+  const handleDragEnd = () => {
+    dragIndexRef.current = null
+    setDragOverIndex(null)
+  }
 
   const canSubmit =
     selectedIds.length >= 4 &&
@@ -275,20 +269,16 @@ export default function NewSessionModal({ players, onCreated, onClose, onPlayers
               <div className="space-y-1">
                 {playerOrder.map((id, i) => {
                   const player = players.find((p) => p.id === id)
-                  const isDragging = draggingId === id
                   return (
                     <div
                       key={id}
-                      data-player-order-id={id}
-                      onPointerDown={(e) => {
-                        e.preventDefault()
-                        dragStartYRef.current = e.clientY
-                        setDragOffsetY(0)
-                        setDraggingId(id)
-                      }}
-                      style={isDragging ? { transform: `translateY(${dragOffsetY}px)`, position: 'relative', zIndex: 10 } : undefined}
-                      className={`flex items-center gap-2 py-1.5 px-3 bg-gray-50 rounded-lg touch-none select-none cursor-grab active:cursor-grabbing ${
-                        isDragging ? 'shadow-lg ring-1 ring-primary/30' : ''
+                      draggable
+                      onDragStart={() => handleDragStart(i)}
+                      onDragOver={(e) => handleDragOver(e, i)}
+                      onDrop={() => handleDrop(i)}
+                      onDragEnd={handleDragEnd}
+                      className={`flex items-center gap-2 py-1.5 px-3 bg-gray-50 rounded-lg cursor-grab active:cursor-grabbing transition-colors ${
+                        dragOverIndex === i ? 'ring-2 ring-primary/40' : ''
                       }`}
                     >
                       <span className="text-xs text-gray-400 w-14 shrink-0">Speler {i + 1}</span>
