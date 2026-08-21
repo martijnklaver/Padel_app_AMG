@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ACHIEVEMENTS, STACKABLE_ACHIEVEMENT_KEYS } from '../../utils/achievements'
 import PlayerAvatar from '../shared/PlayerAvatar'
+import AchievementTooltip from '../shared/AchievementTooltip'
 
 function PlayerAchievementDot({ player, earned, stackable }) {
   return (
@@ -22,28 +23,23 @@ function PlayerAchievementDot({ player, earned, stackable }) {
 }
 
 function AchievementRow({ achievementKey, meta, stackable, players, achievementsByPlayer }) {
-  const [showTooltip, setShowTooltip] = useState(false)
+  const [anchorRect, setAnchorRect] = useState(null)
 
   return (
     <div className="card !p-3">
       <div className="flex items-center justify-between gap-2 mb-2">
-        <div className="relative min-w-0">
+        <div className="min-w-0">
           <button
             type="button"
-            onClick={() => setShowTooltip((v) => !v)}
+            onClick={(e) => setAnchorRect((prev) => (prev ? null : e.currentTarget.getBoundingClientRect()))}
             className="flex items-center gap-1.5 text-sm font-medium text-gray-800 text-left"
           >
             <span className="shrink-0">{meta.icon}</span>
             <span className="truncate">{meta.label}</span>
           </button>
-          {showTooltip && (
-            <>
-              <div className="fixed inset-0 z-10" onClick={() => setShowTooltip(false)} />
-              <div className="absolute top-full mt-1.5 left-0 z-20 bg-gray-900 text-white text-xs rounded-lg px-3 py-2 w-56 shadow-lg">
-                {meta.description}
-              </div>
-            </>
-          )}
+          <AchievementTooltip anchorRect={anchorRect} onClose={() => setAnchorRect(null)}>
+            {meta.description}
+          </AchievementTooltip>
         </div>
         <span
           className={`shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${

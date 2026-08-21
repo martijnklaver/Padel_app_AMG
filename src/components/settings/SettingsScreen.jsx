@@ -3,6 +3,7 @@ import { supabase, uploadPlayerAvatar, syncAchievements } from '../../supabaseCl
 import { computeBestDuo } from '../../utils/tournament'
 import { ACHIEVEMENTS, STACKABLE_ACHIEVEMENT_KEYS, computeAchievementEvents, summarizeAchievements } from '../../utils/achievements'
 import PlayerAvatar from '../shared/PlayerAvatar'
+import AchievementTooltip from '../shared/AchievementTooltip'
 import AchievementsOverviewScreen from './AchievementsOverviewScreen'
 
 const GOLD_GRADIENT = 'linear-gradient(145deg, #FFE873, #FFD700 55%, #E6BE00)'
@@ -22,7 +23,7 @@ const clampStyle = {
 // als los bolletje erop, en klik-uitleg als los balloontje (net als op de
 // achievements-overzichtpagina) i.p.v. een uitklappende rij.
 function AchievementBadge({ meta, earned, stackable }) {
-  const [showTooltip, setShowTooltip] = useState(false)
+  const [anchorRect, setAnchorRect] = useState(null)
 
   if (!earned) return null
 
@@ -30,10 +31,10 @@ function AchievementBadge({ meta, earned, stackable }) {
   const iconTextClass = stackable ? 'text-white' : 'text-gray-900'
 
   return (
-    <div className="relative flex flex-col items-center gap-1">
+    <div className="flex flex-col items-center gap-1">
       <button
         type="button"
-        onClick={() => setShowTooltip((v) => !v)}
+        onClick={(e) => setAnchorRect((prev) => (prev ? null : e.currentTarget.getBoundingClientRect()))}
         className={`relative w-12 h-12 rounded-full ring-2 ring-white shadow-md flex items-center justify-center text-xl hover:scale-105 active:scale-95 transition-transform ${iconTextClass}`}
         style={{ background: gradient }}
       >
@@ -48,24 +49,19 @@ function AchievementBadge({ meta, earned, stackable }) {
         {meta.label}
       </span>
 
-      {showTooltip && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={() => setShowTooltip(false)} />
-          <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 z-20 bg-gray-900 text-white text-[11px] rounded-lg px-3 py-2 w-40 shadow-lg text-center">
-            <p className="font-semibold">{meta.label}{stackable && earned.count > 1 ? ` ×${earned.count}` : ''}</p>
-            {meta.description && <p className="text-white/80 mt-0.5">{meta.description}</p>}
-            <p className="text-white/60 mt-1">
-              Eerste keer: {dateStr(earned.firstAchievedAt)}
-              {earned.count > 1 && (
-                <>
-                  <br />
-                  Laatste keer: {dateStr(earned.lastAchievedAt)}
-                </>
-              )}
-            </p>
-          </div>
-        </>
-      )}
+      <AchievementTooltip anchorRect={anchorRect} onClose={() => setAnchorRect(null)}>
+        <p className="font-semibold">{meta.label}{stackable && earned.count > 1 ? ` ×${earned.count}` : ''}</p>
+        {meta.description && <p className="text-white/80 mt-0.5">{meta.description}</p>}
+        <p className="text-white/60 mt-1">
+          Eerste keer: {dateStr(earned.firstAchievedAt)}
+          {earned.count > 1 && (
+            <>
+              <br />
+              Laatste keer: {dateStr(earned.lastAchievedAt)}
+            </>
+          )}
+        </p>
+      </AchievementTooltip>
     </div>
   )
 }
