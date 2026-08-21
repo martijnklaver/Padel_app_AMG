@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '../../supabaseClient'
+import { supabase, runHistoricalAchievements } from '../../supabaseClient'
 import SessionListItem from './SessionListItem'
 import NewSessionModal from './NewSessionModal'
 import ConfirmDialog from '../shared/ConfirmDialog'
@@ -43,6 +43,9 @@ export default function HomeScreen({ players, onSessionCreated, onSelectSession,
     await supabase.from('matches').delete().eq('session_id', deleteTarget.id)
     await supabase.from('schedule').delete().eq('session_id', deleteTarget.id)
     await supabase.from('sessions').delete().eq('id', deleteTarget.id)
+    // Achievements zijn afgeleid van de sessiegeschiedenis — na een verwijdering
+    // klopt alleen een volledige herberekening nog met de werkelijke data.
+    await runHistoricalAchievements()
     setDeleteTarget(null)
     setDeleting(false)
     fetchSessions()

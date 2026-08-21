@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '../../supabaseClient'
+import { supabase, runHistoricalAchievements } from '../../supabaseClient'
 import { computeSessionRanking, computeRankingFromMatches, assignPositions } from '../../utils/tournament'
 import ConfirmDialog from '../shared/ConfirmDialog'
 import PlayerAvatar from '../shared/PlayerAvatar'
@@ -76,6 +76,9 @@ export default function EndSessionScreen({ session, players, onBack, onEdit, onR
     await supabase.from('matches').delete().eq('session_id', session.id)
     await supabase.from('schedule').delete().eq('session_id', session.id)
     await supabase.from('sessions').delete().eq('id', session.id)
+    // Achievements zijn afgeleid van de sessiegeschiedenis — na een verwijdering
+    // klopt alleen een volledige herberekening nog met de werkelijke data.
+    await runHistoricalAchievements()
     setDeleting(false)
     setDeleteConfirm(false)
     onBack()
