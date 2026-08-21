@@ -112,6 +112,7 @@ export default function ActiveSessionScreen({ session, players, onSessionEnd, on
   const [showNicknameDialog, setShowNicknameDialog] = useState(false)
   const [photoUrl, setPhotoUrl] = useState(session.photo_url ?? null)
   const [showPhoto, setShowPhoto] = useState(!!session.photo_url)
+  const [showInfo, setShowInfo] = useState(false)
   const advancingRef = useRef(false)
 
   useEffect(() => {
@@ -232,11 +233,22 @@ export default function ActiveSessionScreen({ session, players, onSessionEnd, on
             </button>
           )}
           <div>
-            <p className="text-xs text-gray-400">{dateStr}</p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-xs text-gray-400">{dateStr}</p>
+              {session.player_order?.length === 5 && (
+                <button
+                  onClick={() => setShowInfo((v) => !v)}
+                  className="text-xs text-gray-300 hover:text-primary transition-colors leading-none"
+                  title="Spelersvolgorde"
+                >
+                  ℹ️
+                </button>
+              )}
+            </div>
             {session.location && (
               <p className="text-xs text-gray-400">📍 {session.location}</p>
             )}
-            {session.player_order?.length === 5 && (
+            {showInfo && session.player_order?.length === 5 && (
               <p className="text-xs text-gray-400 mt-0.5">
                 {session.player_order.map((id, i) => {
                   const name = nicknames?.[id]?.trim() || players.find((p) => p.id === id)?.name || '?'
@@ -323,7 +335,7 @@ export default function ActiveSessionScreen({ session, players, onSessionEnd, on
         ) : (
           <button
             onClick={() => setShowStop(true)}
-            className="w-full py-2 text-sm text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50"
+            className="w-full py-2 text-sm font-medium text-red-500 border border-red-300 rounded-lg hover:bg-red-50 transition-colors"
           >
             Stop sessie
           </button>

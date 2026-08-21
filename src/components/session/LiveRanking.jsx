@@ -33,6 +33,16 @@ export default function LiveRanking({ session, players, matches, nicknames }) {
     computeSessionRanking(session, players, matches),
     (p) => isPoints ? p.pct : p.winPct
   )
+  const hasPlayed = matches.some((m) => m.is_completed)
+
+  if (!hasPlayed) {
+    return (
+      <div className="card mt-3">
+        <h3 className="font-semibold text-gray-700 mb-1 text-sm">Tussenstand</h3>
+        <p className="text-xs text-gray-400">Nog geen potjes gespeeld</p>
+      </div>
+    )
+  }
 
   return (
     <div className="card mt-3">

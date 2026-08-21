@@ -42,7 +42,7 @@ export default function RoundCard({
   }
 
   return (
-    <div className={`card ${muted ? 'opacity-60' : 'bg-orange-50 border-orange-200'}`}>
+    <div className={`card ${muted ? 'bg-gray-50 border-gray-200' : 'bg-orange-50 border-orange-200'}`}>
       <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{title}</p>
 
       {scheduleRows.map((row) => {
