@@ -403,7 +403,7 @@ export default function NewSessionModal({ players, onCreated, onClose, onPlayers
               )}
               <div className={scoreMode === 'points' ? 'flex-1' : 'w-full'}>
                 <label className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
-                  Wedstrijden <span className="text-gray-400 font-normal">(max {maxMatches})</span>
+                  Wedstrijden <span className="text-gray-400 font-normal">(verwacht {maxMatches})</span>
                 </label>
                 <div className="flex items-center gap-1">
                   <button

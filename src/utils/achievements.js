@@ -2,23 +2,36 @@ import { computeRankingFromMatches, assignPositions, computeBestDuo } from './to
 
 // Badge-catalogus. Key = achievement_key in de database.
 export const ACHIEVEMENTS = {
-  first_session_win: { icon: '🏆', label: 'Eerste sessie gewonnen' },
-  session_wins_5: { icon: '👑', label: '5x sessie gewonnen' },
-  session_wins_10: { icon: '👑', label: '10x sessie gewonnen' },
-  on_fire_3: { icon: '🔥', label: 'On Fire' },
-  unstoppable_5: { icon: '🔥', label: 'Onstopbaar' },
-  perfect_session: { icon: '🎯', label: 'Perfect sessie' },
-  almost_perfect: { icon: '🎯', label: 'Bijna perfect' },
-  duo_dominance_5: { icon: '🤝', label: 'Duo dominantie' },
-  duo_dreamteam_10: { icon: '🤝', label: 'Droomteam' },
-  poppermeister: { icon: '💥', label: 'Poppermeister' },
-  poppermeister_3x: { icon: '💥', label: 'Poppermeister 3x op rij' },
-  comeback: { icon: '📈', label: 'Comeback' },
-  dominant: { icon: '⚡', label: 'Dominant' },
-  unbeatable: { icon: '🛡️', label: 'Onverslaanbaar' },
-  eternal_champion: { icon: '🥇', label: 'Eeuwige kampioen' },
-  underdog: { icon: '😤', label: 'Underdog' },
+  first_session_win: { icon: '🏆', label: 'Eerste sessie gewonnen', description: 'Je hebt voor het eerst een sessie gewonnen!' },
+  session_wins_5: { icon: '👑', label: '5x sessie gewonnen', description: 'Je hebt al 5 sessies op je naam staan' },
+  session_wins_10: { icon: '👑', label: '10x sessie gewonnen', description: 'Dubbele cijfers! 10 sessies gewonnen' },
+  on_fire_3: { icon: '🔥', label: 'On Fire', description: '3 sessies op rij gewonnen' },
+  unstoppable_5: { icon: '🔥', label: 'Onstopbaar', description: '5 sessies op rij gewonnen, niemand kan je stoppen' },
+  perfect_session: { icon: '🎯', label: 'Perfect sessie', description: 'Alle potjes gewonnen deze sessie, ongelofelijk!' },
+  almost_perfect: { icon: '🎯', label: 'Bijna perfect', description: 'Slechts 1 potje verloren, zo goed als perfect' },
+  duo_dominance_5: { icon: '🤝', label: 'Duo dominantie', description: '5x gewonnen met dezelfde partner, wat een combinatie!' },
+  duo_dreamteam_10: { icon: '🤝', label: 'Droomteam', description: '10x gewonnen met dezelfde partner, jullie zijn onverslaanbaar samen' },
+  poppermeister: { icon: '💥', label: 'Poppermeister', description: 'Meeste poppers geslagen deze sessie' },
+  poppermeister_3x: { icon: '💥', label: 'Poppermeister 3x op rij', description: '3 sessies op rij de meeste poppers, leer mikken!' },
+  comeback: { icon: '📈', label: 'Comeback', description: 'Na 3 verloren sessies toch weer gewonnen, wat een veerkracht!' },
+  dominant: { icon: '⚡', label: 'Dominant', description: 'Meer dan 70% gewonnen deze sessie, indrukwekkend' },
+  unbeatable: { icon: '🛡️', label: 'Onverslaanbaar', description: 'Minder dan 30% verloren over alle sessies, een echte winnaar' },
+  eternal_champion: { icon: '🥇', label: 'Eeuwige kampioen', description: 'De meeste sessies gewonnen van iedereen, de onbetwiste koning van de baan' },
+  underdog: { icon: '😤', label: 'Underdog', description: 'Gewonnen terwijl je de laagste win% had, niemand geloofde erin behalve jij' },
+  session_winner: { icon: '🏅', label: 'Sessiewinnaar', description: 'Deze sessie gewonnen!' },
 }
+
+// Badges die per keer opnieuw geteld worden (count gaat omhoog); de rest wordt
+// maar één keer ooit toegekend.
+const STACKABLE_KEYS = new Set([
+  'perfect_session',
+  'almost_perfect',
+  'poppermeister',
+  'comeback',
+  'dominant',
+  'underdog',
+  'session_winner',
+])
 
 // "Sessie gewonnen" = positie #1 in de potjes-ranking van die sessie (geldt voor
 // elke score modus, want dit is de enige rankingvorm die voor alle modi bestaat).
@@ -32,7 +45,9 @@ function sessionWinnerIds(sessionPlayers, sessionMatches) {
 
 // Speelt de volledige sessiegeschiedenis chronologisch af en geeft alle momenten
 // terug waarop een speler aan de criteria van een badge voldeed (met de datum van
-// de sessie waarin dat gebeurde). Puur/side-effect-vrij — persistie gebeurt elders.
+// de sessie waarin dat gebeurde). Voor stapelbare badges komt elke keer dat de
+// voorwaarde weer wordt gehaald in de lijst; voor de rest maar één keer ooit.
+// Puur/side-effect-vrij — persistie gebeurt elders.
 export function computeAchievementEvents(players, sessions, matches, poppers) {
   const events = []
 
@@ -46,7 +61,7 @@ export function computeAchievementEvents(players, sessions, matches, poppers) {
   const winStreak = new Map()
   const lossStreak = new Map()
   const popperStreak = new Map()
-  const alreadyAwarded = new Map()
+  const awardedOnce = new Map()
 
   players.forEach((p) => {
     totalSessionWins.set(p.id, 0)
@@ -54,13 +69,15 @@ export function computeAchievementEvents(players, sessions, matches, poppers) {
     winStreak.set(p.id, 0)
     lossStreak.set(p.id, 0)
     popperStreak.set(p.id, 0)
-    alreadyAwarded.set(p.id, new Set())
+    awardedOnce.set(p.id, new Set())
   })
 
-  const maybeAward = (playerId, key, date) => {
-    const set = alreadyAwarded.get(playerId)
-    if (!set || set.has(key)) return
-    set.add(key)
+  const award = (playerId, key, date) => {
+    if (!STACKABLE_KEYS.has(key)) {
+      const set = awardedOnce.get(playerId)
+      if (!set || set.has(key)) return
+      set.add(key)
+    }
     events.push({ player_id: playerId, achievement_key: key, achieved_at: date })
   }
 
@@ -85,7 +102,7 @@ export function computeAchievementEvents(players, sessions, matches, poppers) {
       const minPct = Math.min(...priorWithData.map((p) => parseFloat(p.winPct)))
       priorWithData
         .filter((p) => parseFloat(p.winPct) === minPct)
-        .forEach((p) => { if (winnerIds.has(p.id)) maybeAward(p.id, 'underdog', date) })
+        .forEach((p) => { if (winnerIds.has(p.id)) award(p.id, 'underdog', date) })
     }
 
     for (const p of sessionPlayers) {
@@ -102,14 +119,15 @@ export function computeAchievementEvents(players, sessions, matches, poppers) {
       const losses = played - Math.round(wins)
       const winPct = (wins / played) * 100
 
-      if (played >= 5 && losses === 0) maybeAward(p.id, 'perfect_session', date)
-      if (played >= 8 && losses <= 1) maybeAward(p.id, 'almost_perfect', date)
-      if (played >= 10 && winPct > 70) maybeAward(p.id, 'dominant', date)
+      if (played >= 5 && losses === 0) award(p.id, 'perfect_session', date)
+      if (played >= 8 && losses <= 1) award(p.id, 'almost_perfect', date)
+      if (played >= 10 && winPct > 70) award(p.id, 'dominant', date)
 
       totalSessionsPlayed.set(p.id, totalSessionsPlayed.get(p.id) + 1)
 
       if (winnerIds.has(p.id)) {
-        if (lossStreak.get(p.id) >= 3) maybeAward(p.id, 'comeback', date)
+        award(p.id, 'session_winner', date)
+        if (lossStreak.get(p.id) >= 3) award(p.id, 'comeback', date)
         lossStreak.set(p.id, 0)
 
         const wins2 = totalSessionWins.get(p.id) + 1
@@ -117,11 +135,11 @@ export function computeAchievementEvents(players, sessions, matches, poppers) {
         const streak2 = winStreak.get(p.id) + 1
         winStreak.set(p.id, streak2)
 
-        if (wins2 === 1) maybeAward(p.id, 'first_session_win', date)
-        if (wins2 >= 5) maybeAward(p.id, 'session_wins_5', date)
-        if (wins2 >= 10) maybeAward(p.id, 'session_wins_10', date)
-        if (streak2 >= 3) maybeAward(p.id, 'on_fire_3', date)
-        if (streak2 >= 5) maybeAward(p.id, 'unstoppable_5', date)
+        if (wins2 === 1) award(p.id, 'first_session_win', date)
+        if (wins2 >= 5) award(p.id, 'session_wins_5', date)
+        if (wins2 >= 10) award(p.id, 'session_wins_10', date)
+        if (streak2 >= 3) award(p.id, 'on_fire_3', date)
+        if (streak2 >= 5) award(p.id, 'unstoppable_5', date)
       } else {
         winStreak.set(p.id, 0)
         lossStreak.set(p.id, lossStreak.get(p.id) + 1)
@@ -138,10 +156,10 @@ export function computeAchievementEvents(players, sessions, matches, poppers) {
     )
     for (const p of sessionPlayers) {
       if (popperLeaders.has(p.id)) {
-        maybeAward(p.id, 'poppermeister', date)
+        award(p.id, 'poppermeister', date)
         const s = popperStreak.get(p.id) + 1
         popperStreak.set(p.id, s)
-        if (s >= 3) maybeAward(p.id, 'poppermeister_3x', date)
+        if (s >= 3) award(p.id, 'poppermeister_3x', date)
       } else {
         popperStreak.set(p.id, 0)
       }
@@ -151,15 +169,15 @@ export function computeAchievementEvents(players, sessions, matches, poppers) {
 
     // Duo dominantie / droomteam — cumulatief inclusief deze sessie
     computeBestDuo(players, matchesSoFar).forEach((d) => {
-      if (d.wins >= 5) d.ids.forEach((id) => maybeAward(id, 'duo_dominance_5', date))
-      if (d.wins >= 10) d.ids.forEach((id) => maybeAward(id, 'duo_dreamteam_10', date))
+      if (d.wins >= 5) d.ids.forEach((id) => award(id, 'duo_dominance_5', date))
+      if (d.wins >= 10) d.ids.forEach((id) => award(id, 'duo_dreamteam_10', date))
     })
 
     // Onverslaanbaar — carrière win/verlies-ratio tot nu toe
     computeRankingFromMatches(players, matchesSoFar).forEach((p) => {
       if (p.played >= 50) {
         const losses = p.played - Math.round(p.wins)
-        if (losses / p.played < 0.3) maybeAward(p.id, 'unbeatable', date)
+        if (losses / p.played < 0.3) award(p.id, 'unbeatable', date)
       }
     })
 
@@ -170,10 +188,33 @@ export function computeAchievementEvents(players, sessions, matches, poppers) {
       if (maxWins > 0) {
         eligible
           .filter((p) => totalSessionWins.get(p.id) === maxWins)
-          .forEach((p) => maybeAward(p.id, 'eternal_champion', date))
+          .forEach((p) => award(p.id, 'eternal_champion', date))
       }
     }
   }
 
   return events
+}
+
+// Groepeert de ruwe events per (speler, badge) tot { count, firstAchievedAt, lastAchievedAt }.
+export function summarizeAchievements(events) {
+  const map = new Map()
+  events.forEach((e) => {
+    const k = `${e.player_id}|${e.achievement_key}`
+    const cur = map.get(k)
+    if (!cur) {
+      map.set(k, {
+        player_id: e.player_id,
+        achievement_key: e.achievement_key,
+        count: 1,
+        firstAchievedAt: e.achieved_at,
+        lastAchievedAt: e.achieved_at,
+      })
+    } else {
+      cur.count += 1
+      if (e.achieved_at < cur.firstAchievedAt) cur.firstAchievedAt = e.achieved_at
+      if (e.achieved_at > cur.lastAchievedAt) cur.lastAchievedAt = e.achieved_at
+    }
+  })
+  return [...map.values()]
 }

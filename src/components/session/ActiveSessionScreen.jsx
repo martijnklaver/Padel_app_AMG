@@ -6,6 +6,7 @@ import ScheduleAccordion from './ScheduleAccordion'
 import EditMatchDialog from './EditMatchDialog'
 import ConfirmDialog from '../shared/ConfirmDialog'
 import PlayerAvatar from '../shared/PlayerAvatar'
+import SessionPhoto from './SessionPhoto'
 
 function NicknameDialog({ session, players, nicknames, onSave, onClose, onPlayersUpdated }) {
   const sessionPlayers = players.filter((p) => session.player_ids.includes(p.id))
@@ -109,7 +110,14 @@ export default function ActiveSessionScreen({ session, players, onSessionEnd, on
   const [stopping, setStopping] = useState(false)
   const [nicknames, setNicknames] = useState(session.nicknames ?? {})
   const [showNicknameDialog, setShowNicknameDialog] = useState(false)
+  const [photoUrl, setPhotoUrl] = useState(session.photo_url ?? null)
+  const [showPhoto, setShowPhoto] = useState(!!session.photo_url)
   const advancingRef = useRef(false)
+
+  useEffect(() => {
+    setPhotoUrl(session.photo_url ?? null)
+    setShowPhoto(!!session.photo_url)
+  }, [session.id])
 
   const fetchData = useCallback(async () => {
     const [{ data: sch }, { data: mch }] = await Promise.all([
@@ -238,13 +246,29 @@ export default function ActiveSessionScreen({ session, players, onSessionEnd, on
             )}
           </div>
         </div>
-        <button
-          onClick={() => setShowNicknameDialog(true)}
-          className="text-xs text-gray-400 hover:text-primary transition-colors"
-        >
-          ✏️ Bijnamen
-        </button>
+        <div className="flex items-center gap-3 shrink-0">
+          <button
+            onClick={() => setShowPhoto((v) => !v)}
+            className="text-xs text-gray-400 hover:text-primary transition-colors whitespace-nowrap"
+          >
+            📷 Picca van de dag
+          </button>
+          <button
+            onClick={() => setShowNicknameDialog(true)}
+            className="text-xs text-gray-400 hover:text-primary transition-colors whitespace-nowrap"
+          >
+            ✏️ Bijnamen
+          </button>
+        </div>
       </div>
+
+      {showPhoto && (
+        <SessionPhoto
+          sessionId={session.id}
+          photoUrl={photoUrl}
+          onUpdated={(url) => { setPhotoUrl(url); setShowPhoto(true) }}
+        />
+      )}
 
       {/* Huidige ronde */}
       {currentRows.length > 0 && (

@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { computeAchievementEvents, ACHIEVEMENTS } from './utils/achievements'
+import { computeAchievementEvents, summarizeAchievements, ACHIEVEMENTS } from './utils/achievements'
 
 export const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -78,40 +78,60 @@ export async function uploadPlayerAvatar(playerId, file) {
   return { error: null, url: `${plainUrl}?t=${Date.now()}` }
 }
 
-// Speelt de volledige historie af, vergelijkt met wat al is opgeslagen, en
-// voegt alleen de nieuw-behaalde achievements toe. Retourneert de nieuw
-// toegevoegde badges (met speler/label/icon erbij) t.b.v. toast + eindscherm.
+// Speelt de volledige historie af en vergelijkt de berekende telling per
+// (speler, badge) met wat al is opgeslagen. Stapelbare badges krijgen een
+// opgehoogde `count` + bijgewerkte `achieved_at`; de rest wordt maar één keer
+// weggeschreven. Retourneert alleen de nieuw-behaalde/opgehoogde badges (met
+// speler/label/icon erbij) t.b.v. toast + eindscherm.
 export async function syncAchievements(players) {
   const [{ data: sessions }, { data: matches }, { data: poppers }, { data: existing }] = await Promise.all([
     supabase.from('sessions').select('*'),
     supabase.from('matches').select('*').eq('is_completed', true),
     supabase.from('poppers').select('*'),
-    supabase.from('achievements').select('player_id, achievement_key'),
+    supabase.from('achievements').select('player_id, achievement_key, count'),
   ])
 
   const events = computeAchievementEvents(players, sessions ?? [], matches ?? [], poppers ?? [])
+  const computed = summarizeAchievements(events)
 
-  const existingKeys = new Set((existing ?? []).map((a) => `${a.player_id}|${a.achievement_key}`))
-  const newEvents = events.filter((e) => !existingKeys.has(`${e.player_id}|${e.achievement_key}`))
-  if (newEvents.length === 0) return []
+  const existingMap = new Map((existing ?? []).map((r) => [`${r.player_id}|${r.achievement_key}`, r]))
 
-  const { data: inserted, error } = await supabase
+  const toUpsert = []
+  const newlyEarned = []
+  for (const c of computed) {
+    const ex = existingMap.get(`${c.player_id}|${c.achievement_key}`)
+    if (!ex || c.count > (ex.count ?? 1)) {
+      toUpsert.push({
+        player_id: c.player_id,
+        achievement_key: c.achievement_key,
+        achieved_at: c.lastAchievedAt,
+        count: c.count,
+      })
+      newlyEarned.push(c)
+    }
+  }
+
+  if (toUpsert.length === 0) return []
+
+  const { error } = await supabase
     .from('achievements')
-    .upsert(
-      newEvents.map((e) => ({ player_id: e.player_id, achievement_key: e.achievement_key, achieved_at: e.achieved_at })),
-      { onConflict: 'player_id,achievement_key', ignoreDuplicates: true }
-    )
-    .select()
+    .upsert(toUpsert, { onConflict: 'player_id,achievement_key' })
 
   if (error) {
-    console.error('[achievements] insert error:', error)
+    console.error('[achievements] upsert error:', error)
     return []
   }
 
-  return (inserted ?? []).map((row) => {
-    const player = players.find((p) => p.id === row.player_id)
-    const meta = ACHIEVEMENTS[row.achievement_key]
-    return { ...row, playerName: player?.name ?? '?', icon: meta?.icon ?? '🏅', label: meta?.label ?? row.achievement_key }
+  return newlyEarned.map((c) => {
+    const player = players.find((p) => p.id === c.player_id)
+    const meta = ACHIEVEMENTS[c.achievement_key]
+    return {
+      ...c,
+      playerName: player?.name ?? '?',
+      icon: meta?.icon ?? '🏅',
+      label: meta?.label ?? c.achievement_key,
+      description: meta?.description ?? '',
+    }
   })
 }
 

@@ -128,7 +128,7 @@ export default function App() {
     { id: 'home', icon: '🏠', label: 'Home' },
     { id: 'active', icon: '🎾', label: 'Actief', disabled: !hasActiveContent },
     { id: 'insights', icon: '📊', label: 'Inzichten' },
-    { id: 'settings', icon: '⚙️', label: 'Spelerbeheer' },
+    { id: 'settings', icon: '⚙️', label: 'Spelersprofielen' },
   ]
 
   const renderContent = () => {

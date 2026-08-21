@@ -139,12 +139,14 @@ export default function EndSessionScreen({ session, players, onBack, onEdit, onR
             {newAchievements.map((a) => (
               <div
                 key={`${a.player_id}-${a.achievement_key}`}
-                className="flex items-center gap-2 bg-white border border-amber-200 rounded-xl px-3 py-2"
+                className="flex items-start gap-2 bg-white border border-amber-200 rounded-xl px-3 py-2 max-w-full sm:max-w-xs"
               >
-                <span className="text-xl">{a.icon}</span>
-                <div className="leading-tight">
-                  <p className="text-sm font-semibold text-gray-900">{a.playerName}</p>
-                  <p className="text-xs text-gray-500">{a.label}</p>
+                <span className="text-xl shrink-0">{a.icon}</span>
+                <div className="leading-tight min-w-0">
+                  <p className="text-sm font-semibold text-gray-900">
+                    {a.playerName} <span className="font-normal text-gray-500">— {a.label}</span>
+                  </p>
+                  {a.description && <p className="text-xs text-gray-500 mt-0.5">{a.description}</p>}
                 </div>
               </div>
             ))}

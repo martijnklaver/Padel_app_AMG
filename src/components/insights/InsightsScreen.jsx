@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase, syncAchievements } from '../../supabaseClient'
+import { supabase } from '../../supabaseClient'
 import { SCORE_MODES } from '../../utils/scoreModes'
 import OverallStatsCard from './OverallStatsCard'
 import PerformanceChart from './PerformanceChart'
@@ -7,7 +7,6 @@ import BestDuoCard from './BestDuoCard'
 import FairestMatchupCard from './FairestMatchupCard'
 import SessionReplayCard from './SessionReplayCard'
 import PopperStatsCard from './PopperStatsCard'
-import AchievementsCard from './AchievementsCard'
 
 const LIMIT_OPTIONS = [
   { label: 'Alle sessies', value: null },
@@ -36,7 +35,6 @@ export default function InsightsScreen({ players, onBack }) {
   const [matches, setMatches] = useState([])
   const [sessions, setSessions] = useState([])
   const [poppers, setPoppers] = useState([])
-  const [achievements, setAchievements] = useState([])
   const [loading, setLoading] = useState(true)
   const [sessionLimit, setSessionLimit] = useState(null)
   const [scoreModeFilter, setScoreModeFilter] = useState(null)
@@ -44,33 +42,20 @@ export default function InsightsScreen({ players, onBack }) {
   const [sessionTypeFilter, setSessionTypeFilter] = useState(null)
 
   const fetchData = useCallback(async () => {
-    const [{ data: allMatches }, { data: allSessions }, { data: allPoppers }, { data: allAchievements }] = await Promise.all([
+    const [{ data: allMatches }, { data: allSessions }, { data: allPoppers }] = await Promise.all([
       supabase.from('matches').select('*').eq('is_completed', true),
       supabase.from('sessions').select('*').order('date', { ascending: false }),
       supabase.from('poppers').select('*'),
-      supabase.from('achievements').select('*'),
     ])
     setMatches(allMatches ?? [])
     setSessions(allSessions ?? [])
     setPoppers(allPoppers ?? [])
-    setAchievements(allAchievements ?? [])
     setLoading(false)
   }, [])
 
   useEffect(() => {
     fetchData()
   }, [fetchData])
-
-  // Vangnet: backfilt achievements uit de volledige historie (bijv. voor sessies die
-  // al afgerond waren voordat dit systeem bestond), zodat je niet op een nieuwe
-  // sessie hoeft te wachten om oude badges te zien.
-  useEffect(() => {
-    if (players.length === 0) return
-    syncAchievements(players).then((newly) => {
-      if (newly.length > 0) fetchData()
-    })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [players.length])
 
   // Volledig voor elke score modus: aantal afgeronde potjes moet gelijk zijn aan het geplande totaal
   const isSessionComplete = useCallback((session) => {
@@ -188,7 +173,6 @@ export default function InsightsScreen({ players, onBack }) {
         <p className="text-center text-gray-400 py-12">Laden...</p>
       ) : (
         <div className="space-y-4">
-          <AchievementsCard players={players} achievements={achievements} />
           <OverallStatsCard players={players} matches={filteredMatches} scoreModeFilter={scoreModeFilter} />
           <PopperStatsCard
             players={players}
