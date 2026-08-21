@@ -42,6 +42,7 @@ export default function NewSessionModal({ players, onCreated, onClose, onPlayers
   const [uploading, setUploading] = useState({})
   const [draggingId, setDraggingId] = useState(null)
   const [dragOffsetY, setDragOffsetY] = useState(0)
+  const [dropTarget, setDropTarget] = useState(null) // { id, position: 'before' | 'after' }
   const dragStartYRef = useRef(0)
 
   const maxMatches = maxUniqueMatches(selectedIds.length)
@@ -90,6 +91,11 @@ export default function NewSessionModal({ players, onCreated, onClose, onPlayers
   // én touch). De gesleepte rij krijgt pointer-events:none zodra hij beweegt,
   // anders zou elementFromPoint steeds de gesleepte rij zelf terugvinden
   // (want die volgt de vinger/cursor) i.p.v. de rij eronder.
+  //
+  // De lijst zelf herordent NIET live tijdens het slepen (dat gaf een grote
+  // "verspringing" van alle andere rijen) — in plaats daarvan toont een dun
+  // streepje precies waar de rij zou landen, en pas bij loslaten wordt de
+  // volgorde daadwerkelijk aangepast.
   useEffect(() => {
     if (!draggingId) return
 
@@ -97,31 +103,52 @@ export default function NewSessionModal({ players, onCreated, onClose, onPlayers
       setDragOffsetY(e.clientY - dragStartYRef.current)
 
       const el = document.elementFromPoint(e.clientX, e.clientY)
-      const overId = el?.closest('[data-player-order-id]')?.dataset.playerOrderId
-      if (!overId || overId === draggingId) return
-      setPlayerOrder((prev) => {
-        const from = prev.indexOf(draggingId)
-        const to = prev.indexOf(overId)
-        if (from === -1 || to === -1 || from === to) return prev
-        const next = [...prev]
-        next.splice(from, 1)
-        next.splice(to, 0, draggingId)
-        return next
-      })
+      const rowEl = el?.closest('[data-player-order-id]')
+      const overId = rowEl?.dataset.playerOrderId
+      if (!overId || overId === draggingId) {
+        setDropTarget(null)
+        return
+      }
+      const rect = rowEl.getBoundingClientRect()
+      const position = e.clientY > rect.top + rect.height / 2 ? 'after' : 'before'
+      setDropTarget((prev) => (prev?.id === overId && prev.position === position ? prev : { id: overId, position }))
     }
 
     const handleUp = () => {
       setDraggingId(null)
       setDragOffsetY(0)
+      setDropTarget((target) => {
+        if (target && target.id !== draggingId) {
+          setPlayerOrder((prev) => {
+            const from = prev.indexOf(draggingId)
+            if (from === -1) return prev
+            const next = [...prev]
+            next.splice(from, 1)
+            const toBase = next.indexOf(target.id)
+            if (toBase === -1) return prev
+            next.splice(target.position === 'after' ? toBase + 1 : toBase, 0, draggingId)
+            return next
+          })
+        }
+        return null
+      })
+    }
+
+    // Onderbroken sleep (bijv. systeemgebaar grijpt de touch af) — negeren,
+    // geen herordening toepassen.
+    const handleCancel = () => {
+      setDraggingId(null)
+      setDragOffsetY(0)
+      setDropTarget(null)
     }
 
     window.addEventListener('pointermove', handleMove)
     window.addEventListener('pointerup', handleUp)
-    window.addEventListener('pointercancel', handleUp)
+    window.addEventListener('pointercancel', handleCancel)
     return () => {
       window.removeEventListener('pointermove', handleMove)
       window.removeEventListener('pointerup', handleUp)
-      window.removeEventListener('pointercancel', handleUp)
+      window.removeEventListener('pointercancel', handleCancel)
     }
   }, [draggingId])
 
@@ -279,30 +306,36 @@ export default function NewSessionModal({ players, onCreated, onClose, onPlayers
                 {playerOrder.map((id, i) => {
                   const player = players.find((p) => p.id === id)
                   const isDragging = draggingId === id
+                  const showBefore = dropTarget?.id === id && dropTarget.position === 'before'
+                  const showAfter = dropTarget?.id === id && dropTarget.position === 'after'
                   return (
-                    <div
-                      key={id}
-                      data-player-order-id={id}
-                      onPointerDown={(e) => {
-                        e.preventDefault()
-                        try { e.currentTarget.releasePointerCapture(e.pointerId) } catch { /* geen actieve capture, negeren */ }
-                        dragStartYRef.current = e.clientY
-                        setDragOffsetY(0)
-                        setDraggingId(id)
-                      }}
-                      style={isDragging ? {
-                        transform: `translateY(${dragOffsetY}px)`,
-                        position: 'relative',
-                        zIndex: 10,
-                        pointerEvents: 'none',
-                      } : undefined}
-                      className={`flex items-center gap-2 py-1.5 px-3 bg-gray-50 rounded-lg touch-none select-none cursor-grab active:cursor-grabbing ${
-                        isDragging ? 'shadow-lg ring-1 ring-primary/30' : ''
-                      }`}
-                    >
-                      <span className="text-xs text-gray-400 w-14 shrink-0">Speler {i + 1}</span>
-                      <span className="flex-1 text-sm font-medium text-gray-800">{player?.name}</span>
-                      <span className="text-gray-300 text-sm shrink-0" aria-hidden="true">⠿</span>
+                    <div key={id}>
+                      {showBefore && <div className="h-0.5 bg-primary rounded-full mx-3 my-1" />}
+                      <div
+                        data-player-order-id={id}
+                        onPointerDown={(e) => {
+                          e.preventDefault()
+                          try { e.currentTarget.releasePointerCapture(e.pointerId) } catch { /* geen actieve capture, negeren */ }
+                          dragStartYRef.current = e.clientY
+                          setDragOffsetY(0)
+                          setDropTarget(null)
+                          setDraggingId(id)
+                        }}
+                        style={isDragging ? {
+                          transform: `translateY(${dragOffsetY}px)`,
+                          position: 'relative',
+                          zIndex: 10,
+                          pointerEvents: 'none',
+                        } : undefined}
+                        className={`flex items-center gap-2 py-1.5 px-3 bg-gray-50 rounded-lg touch-none select-none cursor-grab active:cursor-grabbing ${
+                          isDragging ? 'shadow-lg ring-1 ring-primary/30' : ''
+                        }`}
+                      >
+                        <span className="text-xs text-gray-400 w-14 shrink-0">Speler {i + 1}</span>
+                        <span className="flex-1 text-sm font-medium text-gray-800">{player?.name}</span>
+                        <span className="text-gray-300 text-sm shrink-0" aria-hidden="true">⠿</span>
+                      </div>
+                      {showAfter && <div className="h-0.5 bg-primary rounded-full mx-3 my-1" />}
                     </div>
                   )
                 })}
