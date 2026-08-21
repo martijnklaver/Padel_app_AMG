@@ -34,7 +34,6 @@ const SESSION_TYPE_OPTIONS = [
 export default function InsightsScreen({ players, onBack }) {
   const [matches, setMatches] = useState([])
   const [sessions, setSessions] = useState([])
-  const [schedule, setSchedule] = useState([])
   const [poppers, setPoppers] = useState([])
   const [loading, setLoading] = useState(true)
   const [sessionLimit, setSessionLimit] = useState(null)
@@ -43,15 +42,13 @@ export default function InsightsScreen({ players, onBack }) {
   const [sessionTypeFilter, setSessionTypeFilter] = useState(null)
 
   const fetchData = useCallback(async () => {
-    const [{ data: allMatches }, { data: allSessions }, { data: allSchedule }, { data: allPoppers }] = await Promise.all([
+    const [{ data: allMatches }, { data: allSessions }, { data: allPoppers }] = await Promise.all([
       supabase.from('matches').select('*').eq('is_completed', true),
       supabase.from('sessions').select('*').order('date', { ascending: false }),
-      supabase.from('schedule').select('id, session_id, is_completed'),
       supabase.from('poppers').select('*'),
     ])
     setMatches(allMatches ?? [])
     setSessions(allSessions ?? [])
-    setSchedule(allSchedule ?? [])
     setPoppers(allPoppers ?? [])
     setLoading(false)
   }, [])
@@ -60,17 +57,11 @@ export default function InsightsScreen({ players, onBack }) {
     fetchData()
   }, [fetchData])
 
-  // Volledigheid verschilt per score modus:
-  // - Punten: aantal afgeronde potjes moet gelijk zijn aan het geplande totaal
-  // - Games / Games & Sets: alle geplande wedstrijden (schedule) moeten zijn afgerond
+  // Volledig voor elke score modus: aantal afgeronde potjes moet gelijk zijn aan het geplande totaal
   const isSessionComplete = useCallback((session) => {
-    if (session.score_mode === 'points') {
-      const completedCount = matches.filter((m) => m.session_id === session.id).length
-      return completedCount === session.total_matches
-    }
-    const rows = schedule.filter((r) => r.session_id === session.id)
-    return rows.length > 0 && rows.every((r) => r.is_completed)
-  }, [schedule, matches])
+    const completedCount = matches.filter((m) => m.session_id === session.id).length
+    return completedCount === session.total_matches
+  }, [matches])
 
   const scopedSessions = sessionLimit ? sessions.slice(0, sessionLimit) : sessions
   const filteredSessions = scopedSessions.filter((s) => {
