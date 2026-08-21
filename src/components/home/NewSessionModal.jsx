@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase, uploadPlayerAvatar } from '../../supabaseClient'
 import { maxUniqueMatches, generateSchedule, generateFivePlayerSchedule } from '../../utils/tournament'
 import { SCORE_MODES, SETS_FORMATS } from '../../utils/scoreModes'
@@ -40,6 +40,9 @@ export default function NewSessionModal({ players, onCreated, onClose, onPlayers
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
   const [uploading, setUploading] = useState({})
+  const [draggingId, setDraggingId] = useState(null)
+  const [dragOffsetY, setDragOffsetY] = useState(0)
+  const dragStartYRef = useRef(0)
 
   const maxMatches = maxUniqueMatches(selectedIds.length)
 
@@ -83,23 +86,41 @@ export default function NewSessionModal({ players, onCreated, onClose, onPlayers
     )
   }
 
-  const moveUp = (i) => {
-    if (i === 0) return
-    setPlayerOrder((prev) => {
-      const next = [...prev]
-      ;[next[i - 1], next[i]] = [next[i], next[i - 1]]
-      return next
-    })
-  }
+  // Spelersvolgorde slepen om te herordenen (muis + touch via Pointer Events)
+  useEffect(() => {
+    if (!draggingId) return
 
-  const moveDown = (i) => {
-    if (i === playerOrder.length - 1) return
-    setPlayerOrder((prev) => {
-      const next = [...prev]
-      ;[next[i], next[i + 1]] = [next[i + 1], next[i]]
-      return next
-    })
-  }
+    const handleMove = (e) => {
+      setDragOffsetY(e.clientY - dragStartYRef.current)
+
+      const el = document.elementFromPoint(e.clientX, e.clientY)
+      const overId = el?.closest('[data-player-order-id]')?.dataset.playerOrderId
+      if (!overId || overId === draggingId) return
+      setPlayerOrder((prev) => {
+        const from = prev.indexOf(draggingId)
+        const to = prev.indexOf(overId)
+        if (from === -1 || to === -1 || from === to) return prev
+        const next = [...prev]
+        next.splice(from, 1)
+        next.splice(to, 0, draggingId)
+        return next
+      })
+    }
+
+    const handleUp = () => {
+      setDraggingId(null)
+      setDragOffsetY(0)
+    }
+
+    window.addEventListener('pointermove', handleMove)
+    window.addEventListener('pointerup', handleUp)
+    window.addEventListener('pointercancel', handleUp)
+    return () => {
+      window.removeEventListener('pointermove', handleMove)
+      window.removeEventListener('pointerup', handleUp)
+      window.removeEventListener('pointercancel', handleUp)
+    }
+  }, [draggingId])
 
   const canSubmit =
     selectedIds.length >= 4 &&
@@ -249,33 +270,30 @@ export default function NewSessionModal({ players, onCreated, onClose, onPlayers
           {isFivePlayers && (
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
-                Spelersvolgorde
+                Spelersvolgorde <span className="text-gray-400 font-normal normal-case">(sleep om te herordenen)</span>
               </label>
               <div className="space-y-1">
                 {playerOrder.map((id, i) => {
                   const player = players.find((p) => p.id === id)
+                  const isDragging = draggingId === id
                   return (
-                    <div key={id} className="flex items-center gap-2 py-1.5 px-3 bg-gray-50 rounded-lg">
+                    <div
+                      key={id}
+                      data-player-order-id={id}
+                      onPointerDown={(e) => {
+                        e.preventDefault()
+                        dragStartYRef.current = e.clientY
+                        setDragOffsetY(0)
+                        setDraggingId(id)
+                      }}
+                      style={isDragging ? { transform: `translateY(${dragOffsetY}px)`, position: 'relative', zIndex: 10 } : undefined}
+                      className={`flex items-center gap-2 py-1.5 px-3 bg-gray-50 rounded-lg touch-none select-none cursor-grab active:cursor-grabbing ${
+                        isDragging ? 'shadow-lg ring-1 ring-primary/30' : ''
+                      }`}
+                    >
                       <span className="text-xs text-gray-400 w-14 shrink-0">Speler {i + 1}</span>
                       <span className="flex-1 text-sm font-medium text-gray-800">{player?.name}</span>
-                      <div className="flex gap-0.5">
-                        <button
-                          type="button"
-                          onClick={() => moveUp(i)}
-                          disabled={i === 0}
-                          className="w-7 h-7 flex items-center justify-center rounded text-gray-400 hover:text-gray-700 hover:bg-gray-200 disabled:opacity-25 disabled:cursor-not-allowed text-sm"
-                        >
-                          ↑
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => moveDown(i)}
-                          disabled={i === playerOrder.length - 1}
-                          className="w-7 h-7 flex items-center justify-center rounded text-gray-400 hover:text-gray-700 hover:bg-gray-200 disabled:opacity-25 disabled:cursor-not-allowed text-sm"
-                        >
-                          ↓
-                        </button>
-                      </div>
+                      <span className="text-gray-300 text-sm shrink-0" aria-hidden="true">⠿</span>
                     </div>
                   )
                 })}
