@@ -3,6 +3,7 @@ import { supabase, uploadPlayerAvatar, syncAchievements } from '../../supabaseCl
 import { computeBestDuo } from '../../utils/tournament'
 import { ACHIEVEMENTS, STACKABLE_ACHIEVEMENT_KEYS, computeAchievementEvents, summarizeAchievements } from '../../utils/achievements'
 import PlayerAvatar from '../shared/PlayerAvatar'
+import AchievementsOverviewScreen from './AchievementsOverviewScreen'
 
 const GOLD = '#FFD700'
 const ORANGE = '#EF7D2D'
@@ -77,67 +78,9 @@ function bestDuoFor(player, duos) {
   return { partnerName: mine.names[partnerIdx], pct: mine.winPct }
 }
 
-function AllAchievementsOverview({ players, achievementsByPlayer, statsLoading }) {
-  if (statsLoading) {
-    return (
-      <div className="card mt-4">
-        <h3 className="font-semibold text-gray-700 mb-2">🏅 Alle achievements</h3>
-        <p className="text-xs text-gray-400">Laden...</p>
-      </div>
-    )
-  }
-
-  return (
-    <div className="card mt-4">
-      <h3 className="font-semibold text-gray-700 mb-3">🏅 Alle achievements</h3>
-      <div className="overflow-x-auto -mx-4 px-4">
-        <table className="text-xs border-collapse w-full">
-          <thead>
-            <tr>
-              <th className="text-left pb-2 pr-3 font-medium text-gray-400 sticky left-0 bg-white">Achievement</th>
-              {players.map((p) => (
-                <th key={p.id} className="pb-2 px-1.5 font-medium">
-                  <div className="flex flex-col items-center gap-1">
-                    <PlayerAvatar player={p} size={20} />
-                    <span className="text-[10px] text-gray-500 max-w-[48px] truncate">{p.name}</span>
-                  </div>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {Object.entries(ACHIEVEMENTS).map(([key, meta]) => {
-              const stackable = STACKABLE_ACHIEVEMENT_KEYS.has(key)
-              return (
-                <tr key={key}>
-                  <td className="py-1.5 pr-3 whitespace-nowrap sticky left-0 bg-white">
-                    <span className="mr-1">{meta.icon}</span>
-                    <span className="text-gray-700">{meta.label}</span>
-                    {stackable && <span className="text-gray-400"> (stapelbaar)</span>}
-                  </td>
-                  {players.map((p) => {
-                    const earned = achievementsByPlayer.get(p.id)?.get(key)
-                    return (
-                      <td key={p.id} className="text-center py-1.5 px-1.5">
-                        {earned
-                          ? stackable
-                            ? <span className="font-semibold text-primary">{earned.count}</span>
-                            : '✅'
-                          : '⬜'}
-                      </td>
-                    )
-                  })}
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  )
-}
-
 export default function SettingsScreen({ players, onPlayersUpdated }) {
+  const [view, setView] = useState('profile')
+  const [activePlayerId, setActivePlayerId] = useState(() => players[0]?.id ?? null)
   const [names, setNames] = useState(() =>
     Object.fromEntries(players.map((p) => [p.id, p.name]))
   )
@@ -146,14 +89,11 @@ export default function SettingsScreen({ players, onPlayersUpdated }) {
   const [uploading, setUploading] = useState({})
   const [avatarSaved, setAvatarSaved] = useState({})
   const [avatarError, setAvatarError] = useState({})
-  const [photoMenuFor, setPhotoMenuFor] = useState(null)
+  const [photoMenuOpen, setPhotoMenuOpen] = useState(false)
   const [allMatches, setAllMatches] = useState([])
   const [achievementsByPlayer, setAchievementsByPlayer] = useState(new Map())
   const [statsLoading, setStatsLoading] = useState(true)
-  const [expandedIds, setExpandedIds] = useState(() => new Set(players[0] ? [players[0].id] : []))
-  const [activeNavId, setActiveNavId] = useState(() => players[0]?.id ?? null)
   const fileInputRefs = useRef({})
-  const cardRefs = useRef({})
 
   const getRefs = (playerId) => {
     if (!fileInputRefs.current[playerId]) fileInputRefs.current[playerId] = {}
@@ -192,21 +132,6 @@ export default function SettingsScreen({ players, onPlayersUpdated }) {
 
   const duos = computeBestDuo(players, allMatches)
 
-  const toggleExpanded = (id) => {
-    setExpandedIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
-
-  const handleNavClick = (id) => {
-    setActiveNavId(id)
-    setExpandedIds((prev) => new Set(prev).add(id))
-    cardRefs.current[id]?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }
-
   const handleSave = async (player) => {
     const newName = names[player.id].trim()
     if (!newName || newName === player.name) return
@@ -243,179 +168,181 @@ export default function SettingsScreen({ players, onPlayersUpdated }) {
     setUploading((u) => ({ ...u, [player.id]: false }))
   }
 
-  return (
-    <div className="w-full max-w-lg mx-auto p-4 pb-24 overflow-x-hidden">
-      <h2 className="text-xl font-bold text-gray-900 mb-1 pt-2">Spelersprofiel</h2>
-      <p className="text-sm text-gray-500 mb-4">Profielen, foto's en achievements</p>
+  if (view === 'achievements') {
+    return (
+      <AchievementsOverviewScreen
+        players={players}
+        achievementsByPlayer={achievementsByPlayer}
+        onBack={() => setView('profile')}
+      />
+    )
+  }
 
-      {/* Sticky spelersnavigatie */}
-      <div className="sticky top-0 z-30 bg-gray-50/95 backdrop-blur -mx-4 px-4 py-2 mb-4 overflow-x-auto border-b border-gray-100">
-        <div className="flex gap-2 w-max">
-          {players.map((p) => (
+  const activePlayer = players.find((p) => p.id === activePlayerId) ?? players[0]
+  if (!activePlayer) {
+    return (
+      <div className="w-full max-w-lg mx-auto p-4 pt-2">
+        <h2 className="text-xl font-bold text-gray-900">Spelersprofiel</h2>
+        <p className="text-sm text-gray-500 mt-2">Nog geen spelers</p>
+      </div>
+    )
+  }
+
+  const earnedMap = achievementsByPlayer.get(activePlayer.id) ?? new Map()
+  const isUnchanged = names[activePlayer.id].trim() === activePlayer.name
+  const duo = bestDuoFor(activePlayer, duos)
+
+  return (
+    <div className="w-full max-w-lg mx-auto p-4 overflow-x-hidden">
+      {/* Avatarnavigatie */}
+      <div className="flex items-center gap-3 mb-3 overflow-x-auto -mx-4 px-4 pb-1">
+        {players.map((p) => {
+          const active = p.id === activePlayer.id
+          return (
             <button
               key={p.id}
               type="button"
-              onClick={() => handleNavClick(p.id)}
-              className={`flex flex-col items-center gap-1 px-2 py-1.5 rounded-xl shrink-0 transition-colors ${
-                activeNavId === p.id ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-gray-100'
-              }`}
+              onClick={() => { setActivePlayerId(p.id); setPhotoMenuOpen(false) }}
+              className="shrink-0 flex flex-col items-center gap-1"
             >
-              <PlayerAvatar player={p} size={32} />
-              <span className="text-[10px] font-medium max-w-[56px] truncate">{p.name}</span>
+              <div className={active ? 'rounded-full ring-2 ring-primary ring-offset-2 ring-offset-gray-50' : ''}>
+                <PlayerAvatar player={p} size={active ? 52 : 40} />
+              </div>
+              <span className={`text-[10px] font-medium ${active ? 'text-primary' : 'text-gray-400'}`}>{p.name}</span>
             </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 divide-y divide-gray-100">
-        {players.map((player) => {
-          const earnedMap = achievementsByPlayer.get(player.id) ?? new Map()
-          const isUnchanged = names[player.id].trim() === player.name
-          const isExpanded = expandedIds.has(player.id)
-          const duo = bestDuoFor(player, duos)
-
-          return (
-            <div key={player.id} ref={(el) => { cardRefs.current[player.id] = el }} className="p-4 scroll-mt-16">
-              <input
-                ref={(el) => { getRefs(player.id).camera = el }}
-                type="file"
-                accept="image/*"
-                capture="user"
-                className="hidden"
-                onChange={(e) => { handleAvatarUpload(player, e.target.files[0]); e.target.value = '' }}
-              />
-              <input
-                ref={(el) => { getRefs(player.id).gallery = el }}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => { handleAvatarUpload(player, e.target.files[0]); e.target.value = '' }}
-              />
-
-              {/* Compacte regel — altijd zichtbaar */}
-              <button
-                type="button"
-                onClick={() => { toggleExpanded(player.id); setActiveNavId(player.id) }}
-                className="w-full flex items-center gap-3 text-left"
-              >
-                <PlayerAvatar player={player} size={40} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-900 truncate">{player.name}</p>
-                  {duo && (
-                    <p className="text-xs text-gray-400 truncate">
-                      🤝 {duo.partnerName} — {duo.pct}%
-                    </p>
-                  )}
-                </div>
-                <span className="text-gray-300 text-xs shrink-0">{isExpanded ? '▲' : '▼'}</span>
-              </button>
-
-              {isExpanded && (
-                <div className="mt-4 pt-4 border-t border-gray-100">
-                  {/* Profielfoto — klikbaar, opent camera/galerij-menu */}
-                  <div className="flex flex-col items-center mb-3">
-                    <div className="relative">
-                      <button
-                        type="button"
-                        onClick={() => setPhotoMenuFor((cur) => (cur === player.id ? null : player.id))}
-                        className="cursor-pointer block"
-                      >
-                        <PlayerAvatar player={player} size={88} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPhotoMenuFor((cur) => (cur === player.id ? null : player.id))}
-                        className="absolute bottom-0 right-0 w-7 h-7 flex items-center justify-center rounded-full bg-white border border-gray-200 shadow-sm text-sm"
-                        title="Foto aanpassen"
-                      >
-                        📷
-                      </button>
-
-                      {uploading[player.id] && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-white/70 rounded-full text-xs text-gray-400">···</div>
-                      )}
-
-                      {photoMenuFor === player.id && (
-                        <>
-                          <div className="fixed inset-0 z-10" onClick={() => setPhotoMenuFor(null)} />
-                          <div className="absolute top-full mt-1.5 left-1/2 -translate-x-1/2 z-20 bg-white border border-gray-200 rounded-xl shadow-lg py-1 w-44 overflow-hidden">
-                            <button
-                              type="button"
-                              onClick={() => { setPhotoMenuFor(null); getRefs(player.id).camera?.click() }}
-                              className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                            >
-                              📸 Foto maken
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => { setPhotoMenuFor(null); getRefs(player.id).gallery?.click() }}
-                              className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                            >
-                              🖼️ Uit galerij kiezen
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-
-                    {avatarSaved[player.id] && (
-                      <p className="text-xs text-green-600 font-medium mt-2">Foto opgeslagen ✓</p>
-                    )}
-                    {avatarError[player.id] && (
-                      <p className="text-xs text-red-500 mt-2">{avatarError[player.id]}</p>
-                    )}
-                  </div>
-
-                  {/* Naam + opslaan */}
-                  <div className="flex items-center gap-2 mb-4 w-full">
-                    <input
-                      type="text"
-                      value={names[player.id]}
-                      onChange={(e) => setNames((n) => ({ ...n, [player.id]: e.target.value }))}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSave(player)}
-                      className="flex-1 min-w-0 border border-gray-200 rounded-lg px-3 py-2 text-sm text-center font-semibold focus:outline-none focus:ring-2 focus:ring-primary/30"
-                    />
-                    <button
-                      onClick={() => handleSave(player)}
-                      disabled={saving[player.id] || isUnchanged}
-                      className={`shrink-0 text-xs font-semibold px-3 py-2 rounded-lg transition-colors disabled:cursor-not-allowed ${
-                        isUnchanged
-                          ? 'bg-gray-100 text-gray-400'
-                          : 'bg-primary text-white hover:bg-primary-hover disabled:opacity-60'
-                      }`}
-                    >
-                      {saving[player.id] ? '...' : saved[player.id] ? '✓' : 'Opslaan'}
-                    </button>
-                  </div>
-
-                  {/* Achievements */}
-                  <div>
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">🏅 Achievements</p>
-                    {statsLoading ? (
-                      <p className="text-xs text-gray-400">Laden...</p>
-                    ) : earnedMap.size === 0 ? (
-                      <p className="text-xs text-gray-400">Nog geen achievements behaald</p>
-                    ) : (
-                      <div className="grid grid-cols-3 gap-1.5">
-                        {[...earnedMap.entries()].map(([key, earned]) => (
-                          <AchievementBadge
-                            key={key}
-                            meta={ACHIEVEMENTS[key]}
-                            earned={earned}
-                            stackable={STACKABLE_ACHIEVEMENT_KEYS.has(key)}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
           )
         })}
       </div>
 
-      <AllAchievementsOverview players={players} achievementsByPlayer={achievementsByPlayer} statsLoading={statsLoading} />
+      {/* Titel + link naar achievements-overzicht */}
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-xl font-bold text-gray-900">Spelersprofiel</h2>
+        <button
+          onClick={() => setView('achievements')}
+          className="shrink-0 text-xs font-medium text-primary bg-primary/10 px-3 py-1.5 rounded-full hover:bg-primary/20 transition-colors whitespace-nowrap"
+        >
+          🏅 Alle achievements
+        </button>
+      </div>
+
+      {/* Profielkaart van de actieve speler */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+        <input
+          ref={(el) => { getRefs(activePlayer.id).camera = el }}
+          type="file"
+          accept="image/*"
+          capture="user"
+          className="hidden"
+          onChange={(e) => { handleAvatarUpload(activePlayer, e.target.files[0]); e.target.value = '' }}
+        />
+        <input
+          ref={(el) => { getRefs(activePlayer.id).gallery = el }}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => { handleAvatarUpload(activePlayer, e.target.files[0]); e.target.value = '' }}
+        />
+
+        {/* Profielfoto — klikbaar, opent camera/galerij-menu */}
+        <div className="flex flex-col items-center mb-2">
+          <div className="relative">
+            <button type="button" onClick={() => setPhotoMenuOpen((v) => !v)} className="cursor-pointer block">
+              <PlayerAvatar player={activePlayer} size={80} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setPhotoMenuOpen((v) => !v)}
+              className="absolute bottom-0 right-0 w-7 h-7 flex items-center justify-center rounded-full bg-white border border-gray-200 shadow-sm text-sm"
+              title="Foto aanpassen"
+            >
+              📷
+            </button>
+
+            {uploading[activePlayer.id] && (
+              <div className="absolute inset-0 flex items-center justify-center bg-white/70 rounded-full text-xs text-gray-400">···</div>
+            )}
+
+            {photoMenuOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setPhotoMenuOpen(false)} />
+                <div className="absolute top-full mt-1.5 left-1/2 -translate-x-1/2 z-20 bg-white border border-gray-200 rounded-xl shadow-lg py-1 w-44 overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => { setPhotoMenuOpen(false); getRefs(activePlayer.id).camera?.click() }}
+                    className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                  >
+                    📸 Foto maken
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setPhotoMenuOpen(false); getRefs(activePlayer.id).gallery?.click() }}
+                    className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                  >
+                    🖼️ Uit galerij kiezen
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+
+          {avatarSaved[activePlayer.id] && (
+            <p className="text-xs text-green-600 font-medium mt-1.5">Foto opgeslagen ✓</p>
+          )}
+          {avatarError[activePlayer.id] && (
+            <p className="text-xs text-red-500 mt-1.5">{avatarError[activePlayer.id]}</p>
+          )}
+        </div>
+
+        {/* Naam + opslaan */}
+        <div className="flex items-center gap-2 mb-1.5 w-full">
+          <input
+            type="text"
+            value={names[activePlayer.id]}
+            onChange={(e) => setNames((n) => ({ ...n, [activePlayer.id]: e.target.value }))}
+            onKeyDown={(e) => e.key === 'Enter' && handleSave(activePlayer)}
+            className="flex-1 min-w-0 border border-gray-200 rounded-lg px-3 py-2 text-sm text-center font-semibold focus:outline-none focus:ring-2 focus:ring-primary/30"
+          />
+          <button
+            onClick={() => handleSave(activePlayer)}
+            disabled={saving[activePlayer.id] || isUnchanged}
+            className={`shrink-0 text-xs font-semibold px-3 py-2 rounded-lg transition-colors disabled:cursor-not-allowed ${
+              isUnchanged
+                ? 'bg-gray-100 text-gray-400'
+                : 'bg-primary text-white hover:bg-primary-hover disabled:opacity-60'
+            }`}
+          >
+            {saving[activePlayer.id] ? '...' : saved[activePlayer.id] ? '✓' : 'Opslaan'}
+          </button>
+        </div>
+
+        {/* Beste duo */}
+        {duo && (
+          <p className="text-xs text-gray-400 text-center mb-3">
+            🤝 {duo.partnerName} — {duo.pct}%
+          </p>
+        )}
+
+        {/* Achievements */}
+        <div>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">🏅 Achievements</p>
+          {statsLoading ? (
+            <p className="text-xs text-gray-400">Laden...</p>
+          ) : earnedMap.size === 0 ? (
+            <p className="text-xs text-gray-400">Nog geen achievements behaald</p>
+          ) : (
+            <div className="grid grid-cols-3 gap-1.5">
+              {[...earnedMap.entries()].map(([key, earned]) => (
+                <AchievementBadge
+                  key={key}
+                  meta={ACHIEVEMENTS[key]}
+                  earned={earned}
+                  stackable={STACKABLE_ACHIEVEMENT_KEYS.has(key)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
