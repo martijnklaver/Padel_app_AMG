@@ -43,9 +43,11 @@ export default function NewSessionModal({ players, onCreated, onClose, onPlayers
 
   const maxMatches = maxUniqueMatches(selectedIds.length)
 
+  // Games & Sets is één reguliere wedstrijd (met meerdere sets), geen round-robin
+  // van meerdere potjes — dus altijd precies 1 wedstrijd, niet instelbaar.
   useEffect(() => {
-    setTotalMatches(maxMatches)
-  }, [maxMatches])
+    setTotalMatches(scoreMode === 'games_sets' ? 1 : maxMatches)
+  }, [maxMatches, scoreMode])
 
   // Haal de player_order van de laatste 3 sessies op voor uniekheidscontrole
   useEffect(() => {
@@ -173,7 +175,7 @@ export default function NewSessionModal({ players, onCreated, onClose, onPlayers
     }
   }
 
-  const showMatchCount = selectedIds.length >= 4 && selectedIds.length <= 5
+  const showMatchCount = selectedIds.length >= 4 && selectedIds.length <= 5 && scoreMode !== 'games_sets'
   const isFivePlayers = selectedIds.length === 5
 
   return (
