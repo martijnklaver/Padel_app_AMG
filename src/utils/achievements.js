@@ -1,24 +1,35 @@
 import { computeRankingFromMatches, assignPositions, computeBestDuo } from './tournament'
 
 // Badge-catalogus. Key = achievement_key in de database.
+// category bepaalt de badge-kleur in de UI: session=goud, streak=oranje,
+// duo=blauw, popper=rood, performance=groen.
 export const ACHIEVEMENTS = {
-  first_session_win: { icon: '🏆', label: 'Eerste sessie gewonnen', description: 'Je hebt voor het eerst een sessie gewonnen!' },
-  session_wins_5: { icon: '👑', label: '5x sessie gewonnen', description: 'Je hebt al 5 sessies op je naam staan' },
-  session_wins_10: { icon: '👑', label: '10x sessie gewonnen', description: 'Dubbele cijfers! 10 sessies gewonnen' },
-  on_fire_3: { icon: '🔥', label: 'On Fire', description: '3 sessies op rij gewonnen' },
-  unstoppable_5: { icon: '🔥', label: 'Onstopbaar', description: '5 sessies op rij gewonnen, niemand kan je stoppen' },
-  perfect_session: { icon: '🎯', label: 'Perfect sessie', description: 'Alle potjes gewonnen deze sessie, ongelofelijk!' },
-  almost_perfect: { icon: '🎯', label: 'Bijna perfect', description: 'Slechts 1 potje verloren, zo goed als perfect' },
-  duo_dominance_5: { icon: '🤝', label: 'Duo dominantie', description: '5x gewonnen met dezelfde partner, wat een combinatie!' },
-  duo_dreamteam_10: { icon: '🤝', label: 'Droomteam', description: '10x gewonnen met dezelfde partner, jullie zijn onverslaanbaar samen' },
-  poppermeister: { icon: '💥', label: 'Poppermeister', description: 'Meeste poppers geslagen deze sessie' },
-  poppermeister_3x: { icon: '💥', label: 'Poppermeister 3x op rij', description: '3 sessies op rij de meeste poppers, leer mikken!' },
-  comeback: { icon: '📈', label: 'Comeback', description: 'Na 3 verloren sessies toch weer gewonnen, wat een veerkracht!' },
-  dominant: { icon: '⚡', label: 'Dominant', description: 'Meer dan 70% gewonnen deze sessie, indrukwekkend' },
-  unbeatable: { icon: '🛡️', label: 'Onverslaanbaar', description: 'Minder dan 30% verloren over alle sessies, een echte winnaar' },
-  eternal_champion: { icon: '🥇', label: 'Eeuwige kampioen', description: 'De meeste sessies gewonnen van iedereen, de onbetwiste koning van de baan' },
-  underdog: { icon: '😤', label: 'Underdog', description: 'Gewonnen terwijl je de laagste win% had, niemand geloofde erin behalve jij' },
-  session_winner: { icon: '🏅', label: 'Sessiewinnaar', description: 'Deze sessie gewonnen!' },
+  first_session_win: { icon: '🏆', label: 'Eerste sessie gewonnen', description: 'Je hebt voor het eerst een sessie gewonnen!', category: 'session' },
+  session_wins_5: { icon: '👑', label: '5x sessie gewonnen', description: 'Je hebt al 5 sessies op je naam staan', category: 'session' },
+  session_wins_10: { icon: '👑', label: '10x sessie gewonnen', description: 'Dubbele cijfers! 10 sessies gewonnen', category: 'session' },
+  on_fire_3: { icon: '🔥', label: 'On Fire', description: '3 sessies op rij gewonnen', category: 'streak' },
+  unstoppable_5: { icon: '🔥', label: 'Onstopbaar', description: '5 sessies op rij gewonnen, niemand kan je stoppen', category: 'streak' },
+  perfect_session: { icon: '🎯', label: 'Perfect sessie', description: 'Alle potjes gewonnen deze sessie, ongelofelijk!', category: 'performance' },
+  almost_perfect: { icon: '🎯', label: 'Bijna perfect', description: 'Slechts 1 potje verloren, zo goed als perfect', category: 'performance' },
+  duo_dominance_5: { icon: '🤝', label: 'Duo dominantie', description: '5x gewonnen met dezelfde partner, wat een combinatie!', category: 'duo' },
+  duo_dreamteam_10: { icon: '🤝', label: 'Droomteam', description: '10x gewonnen met dezelfde partner, jullie zijn onverslaanbaar samen', category: 'duo' },
+  poppermeister: { icon: '💥', label: 'Poppermeister', description: 'Meeste poppers geslagen deze sessie', category: 'popper' },
+  poppermeister_3x: { icon: '💥', label: 'Poppermeister 3x op rij', description: '3 sessies op rij de meeste poppers, leer mikken!', category: 'popper' },
+  comeback: { icon: '📈', label: 'Comeback', description: 'Na 3 verloren sessies toch weer gewonnen, wat een veerkracht!', category: 'performance' },
+  dominant: { icon: '⚡', label: 'Dominant', description: 'Meer dan 70% gewonnen deze sessie, indrukwekkend', category: 'performance' },
+  unbeatable: { icon: '🛡️', label: 'Onverslaanbaar', description: 'Minder dan 30% verloren over alle sessies, een echte winnaar', category: 'performance' },
+  eternal_champion: { icon: '🥇', label: 'Eeuwige kampioen', description: 'De meeste sessies gewonnen van iedereen, de onbetwiste koning van de baan', category: 'session' },
+  underdog: { icon: '😤', label: 'Underdog', description: 'Gewonnen terwijl je de laagste win% had, niemand geloofde erin behalve jij', category: 'performance' },
+  session_winner: { icon: '🏅', label: 'Sessiewinnaar', description: 'Deze sessie gewonnen!', category: 'session' },
+}
+
+// Categoriekleuren voor de badge-grid.
+export const ACHIEVEMENT_CATEGORY_COLORS = {
+  session: '#FFD700',
+  streak: '#EF7D2D',
+  duo: '#4A90E2',
+  popper: '#E74C3C',
+  performance: '#27AE60',
 }
 
 // Badges die per keer opnieuw geteld worden (count gaat omhoog); de rest wordt
