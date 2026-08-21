@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { User } from 'lucide-react'
 import { supabase, subscribeToSessions, preloadAvatars, syncAchievements } from './supabaseClient'
 import LoadingSpinner from './components/shared/LoadingSpinner'
 import AchievementToasts from './components/shared/AchievementToasts'
@@ -128,7 +129,7 @@ export default function App() {
     { id: 'home', icon: '🏠', label: 'Home' },
     { id: 'active', icon: '🎾', label: 'Actief', disabled: !hasActiveContent },
     { id: 'insights', icon: '📊', label: 'Inzichten' },
-    { id: 'settings', icon: '⚙️', label: 'Spelersprofielen' },
+    { id: 'settings', icon: User, label: 'Spelersprofiel' },
   ]
 
   const renderContent = () => {
@@ -240,7 +241,11 @@ export default function App() {
             onClick={() => !tab.disabled && setActiveTab(tab.id)}
             className={`tab-btn md:flex-none md:flex-row md:gap-2 md:py-4 md:px-5 md:text-sm ${activeTab === tab.id ? 'active' : ''} ${tab.disabled ? 'disabled' : ''}`}
           >
-            <span className="text-xl md:text-lg">{tab.icon}</span>
+            {typeof tab.icon === 'string' ? (
+              <span className="text-xl md:text-lg">{tab.icon}</span>
+            ) : (
+              <tab.icon className="w-5 h-5 md:w-[18px] md:h-[18px]" />
+            )}
             <span className="mt-0.5 md:mt-0 md:font-medium">{tab.label}</span>
           </button>
         ))}

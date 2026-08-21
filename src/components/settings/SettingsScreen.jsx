@@ -12,13 +12,7 @@ const dateStr = (d) =>
 function AchievementBadge({ meta, earned }) {
   const [expanded, setExpanded] = useState(false)
 
-  if (!earned) {
-    return (
-      <span className="text-xs bg-gray-50 text-gray-400 border border-gray-200 px-2 py-1 rounded-full opacity-50 whitespace-nowrap">
-        {meta.icon} {meta.label}
-      </span>
-    )
-  }
+  if (!earned) return null
 
   return (
     <>
@@ -30,9 +24,12 @@ function AchievementBadge({ meta, earned }) {
         {meta.icon} {meta.label}{earned.count > 1 ? ` ×${earned.count}` : ''}
       </button>
       {expanded && (
-        <div className="basis-full text-[11px] text-gray-500 pl-1 -mt-0.5">
-          Eerste keer behaald: {dateStr(earned.firstAchievedAt)}
-          {earned.count > 1 && <> · Laatste keer behaald: {dateStr(earned.lastAchievedAt)}</>}
+        <div className="basis-full text-[11px] text-gray-500 pl-1 -mt-0.5 space-y-0.5">
+          {meta.description && <p>{meta.description}</p>}
+          <p>
+            Eerste keer behaald: {dateStr(earned.firstAchievedAt)}
+            {earned.count > 1 && <> · Laatste keer: {dateStr(earned.lastAchievedAt)} (×{earned.count})</>}
+          </p>
         </div>
       )}
     </>
@@ -140,7 +137,7 @@ export default function SettingsScreen({ players, onPlayersUpdated }) {
 
   return (
     <div className="w-full max-w-lg mx-auto p-4 pb-24 overflow-x-hidden">
-      <h2 className="text-xl font-bold text-gray-900 mb-1 pt-2">Spelersprofielen</h2>
+      <h2 className="text-xl font-bold text-gray-900 mb-1 pt-2">Spelersprofiel</h2>
       <p className="text-sm text-gray-500 mb-6">Profielen, foto's en achievements</p>
 
       <div className="space-y-3 w-full">
@@ -232,10 +229,12 @@ export default function SettingsScreen({ players, onPlayersUpdated }) {
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Achievements</p>
                 {statsLoading ? (
                   <p className="text-xs text-gray-400">Laden...</p>
+                ) : earnedMap.size === 0 ? (
+                  <p className="text-xs text-gray-400">Nog geen achievements behaald</p>
                 ) : (
                   <div className="flex flex-wrap gap-1.5">
-                    {Object.entries(ACHIEVEMENTS).map(([key, meta]) => (
-                      <AchievementBadge key={key} meta={meta} earned={earnedMap.get(key)} />
+                    {[...earnedMap.entries()].map(([key, earned]) => (
+                      <AchievementBadge key={key} meta={ACHIEVEMENTS[key]} earned={earned} />
                     ))}
                   </div>
                 )}
