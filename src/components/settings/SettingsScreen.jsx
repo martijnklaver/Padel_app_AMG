@@ -313,7 +313,7 @@ export default function SettingsScreen({ players, onPlayersUpdated }) {
         {/* Beste duo */}
         {duo && (
           <p className="text-xs text-gray-400 text-center mb-3">
-            🤝 {duo.partnerName} — {duo.pct}%
+            🤝 Beste duo: {duo.partnerName} — {duo.pct}% samen
           </p>
         )}
 
