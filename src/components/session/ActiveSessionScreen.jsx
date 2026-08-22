@@ -113,7 +113,7 @@ export default function ActiveSessionScreen({ session, players, onSessionEnd, on
   const [photoUrl, setPhotoUrl] = useState(session.photo_url ?? null)
   const [showPhoto, setShowPhoto] = useState(!!session.photo_url)
   const [showInfo, setShowInfo] = useState(false)
-  const advancingRef = useRef(false)
+  const recalcRef = useRef(false)
 
   useEffect(() => {
     setPhotoUrl(session.photo_url ?? null)
@@ -125,79 +125,74 @@ export default function ActiveSessionScreen({ session, players, onSessionEnd, on
       supabase.from('schedule').select('*').eq('session_id', session.id).order('round_number'),
       supabase.from('matches').select('*').eq('session_id', session.id).order('round_number'),
     ])
-    setSchedule(sch ?? [])
+    const freshSch = sch ?? []
+    setSchedule(freshSch)
     setMatches(mch ?? [])
+    return freshSch
   }, [session.id])
 
+  // Bepaalt de "huidige ronde": altijd de ronde met het laagste round_number
+  // die nog niet volledig is voltooid — ongeacht of latere rondes (bijv. via
+  // het volledig schema overzicht) al wel zijn ingevuld. Zet is_current in de
+  // schedule tabel dienovereenkomstig.
+  const recalcCurrentRound = useCallback(async (freshSchedule) => {
+    if (recalcRef.current || freshSchedule.length === 0) return
+    recalcRef.current = true
+
+    try {
+      const incompleteRounds = freshSchedule.filter((r) => !r.is_completed).map((r) => r.round_number)
+      const targetRound = incompleteRounds.length > 0 ? Math.min(...incompleteRounds) : null
+
+      if (targetRound === null) {
+        if (session.is_active) {
+          await supabase
+            .from('schedule')
+            .update({ is_current: false })
+            .eq('session_id', session.id)
+          await supabase
+            .from('sessions')
+            .update({ is_active: false, is_completed: true })
+            .eq('id', session.id)
+          onSessionEnd({ ...session, is_active: false, is_completed: true })
+        }
+        return
+      }
+
+      const alreadyCorrect = freshSchedule.every(
+        (r) => Boolean(r.is_current) === (r.round_number === targetRound)
+      )
+      if (alreadyCorrect) return
+
+      await supabase
+        .from('schedule')
+        .update({ is_current: false })
+        .eq('session_id', session.id)
+        .neq('round_number', targetRound)
+      await supabase
+        .from('schedule')
+        .update({ is_current: true })
+        .eq('session_id', session.id)
+        .eq('round_number', targetRound)
+
+      await fetchData()
+    } finally {
+      recalcRef.current = false
+    }
+  }, [session, fetchData, onSessionEnd])
+
   useEffect(() => {
-    fetchData()
-  }, [fetchData])
+    fetchData().then(recalcCurrentRound)
+  }, [fetchData, recalcCurrentRound])
 
   useEffect(() => {
     const unsub = subscribeToSession(session.id, fetchData)
     return unsub
   }, [session.id, fetchData])
 
-  const tryAdvanceRound = useCallback(async (freshSchedule, freshMatches) => {
-    if (advancingRef.current) return
-    advancingRef.current = true
-
-    try {
-      const currentRows = freshSchedule.filter((r) => r.is_current)
-      if (currentRows.length === 0) return
-
-      const allCurrentDone = currentRows.every((row) =>
-        freshMatches.some(
-          (m) =>
-            m.is_completed &&
-            m.session_id === session.id &&
-            m.round_number === row.round_number &&
-            ((m.team1_p1 === row.team1_p1 && m.team1_p2 === row.team1_p2) ||
-              (m.team1_p1 === row.team1_p2 && m.team1_p2 === row.team1_p1))
-        )
-      )
-
-      if (!allCurrentDone) return
-
-      const currentRound = currentRows[0].round_number
-      const allRounds = [...new Set(freshSchedule.map((r) => r.round_number))].sort((a, b) => a - b)
-      const nextRound = allRounds.find((r) => r > currentRound)
-
-      if (nextRound) {
-        await supabase
-          .from('schedule')
-          .update({ is_current: false })
-          .eq('session_id', session.id)
-          .eq('round_number', currentRound)
-        await supabase
-          .from('schedule')
-          .update({ is_current: true })
-          .eq('session_id', session.id)
-          .eq('round_number', nextRound)
-        await fetchData()
-      } else {
-        await supabase
-          .from('sessions')
-          .update({ is_active: false, is_completed: true })
-          .eq('id', session.id)
-        onSessionEnd({ ...session, is_active: false, is_completed: true })
-      }
-    } finally {
-      advancingRef.current = false
-    }
-  }, [session, fetchData, onSessionEnd])
-
   const handleScoreSaved = useCallback(async () => {
-    const [{ data: sch }, { data: mch }] = await Promise.all([
-      supabase.from('schedule').select('*').eq('session_id', session.id).order('round_number'),
-      supabase.from('matches').select('*').eq('session_id', session.id).order('round_number'),
-    ])
-    const freshSch = sch ?? []
-    const freshMch = mch ?? []
-    setSchedule(freshSch)
-    setMatches(freshMch)
-    await tryAdvanceRound(freshSch, freshMch)
-  }, [session.id, tryAdvanceRound])
+    const freshSch = await fetchData()
+    await recalcCurrentRound(freshSch)
+  }, [fetchData, recalcCurrentRound])
 
   const handleStop = async () => {
     setStopping(true)
