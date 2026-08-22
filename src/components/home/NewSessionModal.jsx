@@ -1,8 +1,59 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  arrayMove,
+  useSortable,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { supabase, uploadPlayerAvatar } from '../../supabaseClient'
 import { maxUniqueMatches, generateSchedule, generateFivePlayerSchedule } from '../../utils/tournament'
 import { SCORE_MODES, SETS_FORMATS } from '../../utils/scoreModes'
 import PlayerAvatar from '../shared/PlayerAvatar'
+
+// Eén rij in de spelersvolgorde-lijst. Alleen de ⋮⋮ handle is sleepbaar
+// (niet de hele rij), zodat de rest van de rij scrollgedrag niet blokkeert.
+function SortablePlayerRow({ id, index, name }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+    zIndex: isDragging ? 10 : undefined,
+    position: 'relative',
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`flex items-center gap-2 py-1 pl-3 pr-1 bg-gray-50 rounded-lg ${
+        isDragging ? 'shadow-lg ring-1 ring-primary/30' : ''
+      }`}
+    >
+      <span className="text-xs text-gray-400 w-14 shrink-0">Speler {index + 1}</span>
+      <span className="flex-1 text-sm font-medium text-gray-800 truncate">{name}</span>
+      <button
+        type="button"
+        {...attributes}
+        {...listeners}
+        aria-label="Sleep om te herordenen"
+        className="w-11 h-11 flex items-center justify-center text-gray-400 shrink-0 rounded-md touch-none cursor-grab active:cursor-grabbing hover:bg-gray-100"
+      >
+        <span className="text-lg leading-none tracking-tighter" aria-hidden="true">⋮⋮</span>
+      </button>
+    </div>
+  )
+}
 
 function shuffleIds(ids) {
   const a = [...ids]
@@ -40,10 +91,11 @@ export default function NewSessionModal({ players, onCreated, onClose, onPlayers
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
   const [uploading, setUploading] = useState({})
-  const [draggingId, setDraggingId] = useState(null)
-  const [dragOffsetY, setDragOffsetY] = useState(0)
-  const [dropTarget, setDropTarget] = useState(null) // { id, position: 'before' | 'after' }
-  const dragStartYRef = useRef(0)
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } })
+  )
 
   const maxMatches = maxUniqueMatches(selectedIds.length)
 
@@ -87,70 +139,14 @@ export default function NewSessionModal({ players, onCreated, onClose, onPlayers
     )
   }
 
-  // Spelersvolgorde slepen om te herordenen (Pointer Events — werkt voor muis
-  // én touch). De gesleepte rij krijgt pointer-events:none zodra hij beweegt,
-  // anders zou elementFromPoint steeds de gesleepte rij zelf terugvinden
-  // (want die volgt de vinger/cursor) i.p.v. de rij eronder.
-  //
-  // De lijst zelf herordent NIET live tijdens het slepen (dat gaf een grote
-  // "verspringing" van alle andere rijen) — in plaats daarvan toont een dun
-  // streepje precies waar de rij zou landen, en pas bij loslaten wordt de
-  // volgorde daadwerkelijk aangepast.
-  useEffect(() => {
-    if (!draggingId) return
-
-    const handleMove = (e) => {
-      setDragOffsetY(e.clientY - dragStartYRef.current)
-
-      const el = document.elementFromPoint(e.clientX, e.clientY)
-      const rowEl = el?.closest('[data-player-order-id]')
-      const overId = rowEl?.dataset.playerOrderId
-      if (!overId || overId === draggingId) {
-        setDropTarget(null)
-        return
-      }
-      const rect = rowEl.getBoundingClientRect()
-      const position = e.clientY > rect.top + rect.height / 2 ? 'after' : 'before'
-      setDropTarget((prev) => (prev?.id === overId && prev.position === position ? prev : { id: overId, position }))
-    }
-
-    const handleUp = () => {
-      setDraggingId(null)
-      setDragOffsetY(0)
-      setDropTarget((target) => {
-        if (target && target.id !== draggingId) {
-          setPlayerOrder((prev) => {
-            const from = prev.indexOf(draggingId)
-            if (from === -1) return prev
-            const next = [...prev]
-            next.splice(from, 1)
-            const toBase = next.indexOf(target.id)
-            if (toBase === -1) return prev
-            next.splice(target.position === 'after' ? toBase + 1 : toBase, 0, draggingId)
-            return next
-          })
-        }
-        return null
-      })
-    }
-
-    // Onderbroken sleep (bijv. systeemgebaar grijpt de touch af) — negeren,
-    // geen herordening toepassen.
-    const handleCancel = () => {
-      setDraggingId(null)
-      setDragOffsetY(0)
-      setDropTarget(null)
-    }
-
-    window.addEventListener('pointermove', handleMove)
-    window.addEventListener('pointerup', handleUp)
-    window.addEventListener('pointercancel', handleCancel)
-    return () => {
-      window.removeEventListener('pointermove', handleMove)
-      window.removeEventListener('pointerup', handleUp)
-      window.removeEventListener('pointercancel', handleCancel)
-    }
-  }, [draggingId])
+  const handlePlayerOrderDragEnd = ({ active, over }) => {
+    if (!over || active.id === over.id) return
+    setPlayerOrder((items) => {
+      const oldIndex = items.indexOf(active.id)
+      const newIndex = items.indexOf(over.id)
+      return arrayMove(items, oldIndex, newIndex)
+    })
+  }
 
   const canSubmit =
     selectedIds.length >= 4 &&
@@ -302,44 +298,20 @@ export default function NewSessionModal({ players, onCreated, onClose, onPlayers
               <label className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
                 Spelersvolgorde <span className="text-gray-400 font-normal normal-case">(sleep om te herordenen)</span>
               </label>
-              <div className="space-y-1">
-                {playerOrder.map((id, i) => {
-                  const player = players.find((p) => p.id === id)
-                  const isDragging = draggingId === id
-                  const showBefore = dropTarget?.id === id && dropTarget.position === 'before'
-                  const showAfter = dropTarget?.id === id && dropTarget.position === 'after'
-                  return (
-                    <div key={id}>
-                      {showBefore && <div className="h-0.5 bg-primary rounded-full mx-3 my-1" />}
-                      <div
-                        data-player-order-id={id}
-                        onPointerDown={(e) => {
-                          e.preventDefault()
-                          try { e.currentTarget.releasePointerCapture(e.pointerId) } catch { /* geen actieve capture, negeren */ }
-                          dragStartYRef.current = e.clientY
-                          setDragOffsetY(0)
-                          setDropTarget(null)
-                          setDraggingId(id)
-                        }}
-                        style={isDragging ? {
-                          transform: `translateY(${dragOffsetY}px)`,
-                          position: 'relative',
-                          zIndex: 10,
-                          pointerEvents: 'none',
-                        } : undefined}
-                        className={`flex items-center gap-2 py-1.5 px-3 bg-gray-50 rounded-lg touch-none select-none cursor-grab active:cursor-grabbing ${
-                          isDragging ? 'shadow-lg ring-1 ring-primary/30' : ''
-                        }`}
-                      >
-                        <span className="text-xs text-gray-400 w-14 shrink-0">Speler {i + 1}</span>
-                        <span className="flex-1 text-sm font-medium text-gray-800">{player?.name}</span>
-                        <span className="text-gray-300 text-sm shrink-0" aria-hidden="true">⠿</span>
-                      </div>
-                      {showAfter && <div className="h-0.5 bg-primary rounded-full mx-3 my-1" />}
-                    </div>
-                  )
-                })}
-              </div>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handlePlayerOrderDragEnd}
+              >
+                <SortableContext items={playerOrder} strategy={verticalListSortingStrategy}>
+                  <div className="space-y-1">
+                    {playerOrder.map((id, i) => {
+                      const player = players.find((p) => p.id === id)
+                      return <SortablePlayerRow key={id} id={id} index={i} name={player?.name} />
+                    })}
+                  </div>
+                </SortableContext>
+              </DndContext>
             </div>
           )}
 
