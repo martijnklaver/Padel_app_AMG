@@ -4,6 +4,7 @@ import { computeSessionRanking, computeRankingFromMatches, assignPositions } fro
 import ConfirmDialog from '../shared/ConfirmDialog'
 import PlayerAvatar from '../shared/PlayerAvatar'
 import SessionPhoto from './SessionPhoto'
+import SessionAchievements from './SessionAchievements'
 
 function RankingTable({ title, ranking, columns }) {
   return (
@@ -227,6 +228,11 @@ export default function EndSessionScreen({ session, players, onBack, onEdit, onR
           </table>
           </div>
         </div>
+      )}
+
+      {/* Achievements van deze sessie */}
+      {!loading && (
+        <SessionAchievements sessionId={session.id} players={players} nicknames={session.nicknames} />
       )}
 
       {/* Poppermeister van de dag */}

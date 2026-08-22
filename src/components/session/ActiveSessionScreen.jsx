@@ -7,6 +7,7 @@ import EditMatchDialog from './EditMatchDialog'
 import ConfirmDialog from '../shared/ConfirmDialog'
 import PlayerAvatar from '../shared/PlayerAvatar'
 import SessionPhoto from './SessionPhoto'
+import SessionAchievements from './SessionAchievements'
 
 function NicknameDialog({ session, players, nicknames, onSave, onClose, onPlayersUpdated }) {
   const sessionPlayers = players.filter((p) => session.player_ids.includes(p.id))
@@ -317,6 +318,9 @@ export default function ActiveSessionScreen({ session, players, onSessionEnd, on
 
       {/* Live ranking */}
       <LiveRanking session={session} players={players} matches={matches} nicknames={nicknames} />
+
+      {/* Achievements van deze sessie */}
+      <SessionAchievements sessionId={session.id} players={players} nicknames={nicknames} />
 
       {/* Stop / Klaar-knop */}
       <div className="mt-4">

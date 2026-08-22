@@ -109,18 +109,23 @@ export function computeAchievementEvents(players, sessions, matches, poppers) {
     awardedOnce.set(p.id, new Set())
   })
 
+  // Bijgehouden zodat award() ook de sessie kan meesturen waarin de badge
+  // behaald is, zonder alle ~20 award()-aanroepen hieronder aan te hoeven passen.
+  let currentSession = null
+
   const award = (playerId, key, date) => {
     if (!STACKABLE_ACHIEVEMENT_KEYS.has(key)) {
       const set = awardedOnce.get(playerId)
       if (!set || set.has(key)) return
       set.add(key)
     }
-    events.push({ player_id: playerId, achievement_key: key, achieved_at: date })
+    events.push({ player_id: playerId, achievement_key: key, achieved_at: date, session_id: currentSession.id })
   }
 
   let matchesSoFar = []
 
   for (const session of completedSessions) {
+    currentSession = session
     const sessionMatches = matches.filter((m) => m.session_id === session.id && m.is_completed)
     if (sessionMatches.length === 0) continue
 

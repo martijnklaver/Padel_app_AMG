@@ -78,58 +78,53 @@ export async function uploadPlayerAvatar(playerId, file) {
   return { error: null, url: `${plainUrl}?t=${Date.now()}` }
 }
 
-// Speelt de volledige historie af en vergelijkt de berekende telling per
-// (speler, badge) met wat al is opgeslagen. Stapelbare badges krijgen een
-// opgehoogde `count` + bijgewerkte `achieved_at`; de rest wordt maar één keer
-// weggeschreven. Retourneert alleen de nieuw-behaalde/opgehoogde badges (met
-// speler/label/icon erbij) t.b.v. toast + eindscherm.
+// Speelt de volledige historie af en vergelijkt de berekende events met wat al
+// is opgeslagen. Elke keer dat een badge behaald wordt (ook stapelbare, zoals
+// Sessiewinnaar) is een aparte rij met de bijbehorende session_id — een
+// (speler, badge, sessie) combinatie kan dus maar één keer voorkomen, wat als
+// dedupe-sleutel dient bij het incrementeel wegschrijven. Retourneert alleen
+// de nieuw-behaalde badges (met speler/label/icon erbij) t.b.v. toast + eindscherm.
 export async function syncAchievements(players) {
   const [{ data: sessions }, { data: matches }, { data: poppers }, { data: existing }] = await Promise.all([
     supabase.from('sessions').select('*'),
     supabase.from('matches').select('*').eq('is_completed', true),
     supabase.from('poppers').select('*'),
-    supabase.from('achievements').select('player_id, achievement_key, count'),
+    supabase.from('achievements').select('player_id, achievement_key, session_id'),
   ])
 
   const events = computeAchievementEvents(players, sessions ?? [], matches ?? [], poppers ?? [])
-  const computed = summarizeAchievements(events)
 
-  const existingMap = new Map((existing ?? []).map((r) => [`${r.player_id}|${r.achievement_key}`, r]))
+  const existingKeys = new Set(
+    (existing ?? []).map((r) => `${r.player_id}|${r.achievement_key}|${r.session_id}`)
+  )
+  const newEvents = events.filter(
+    (e) => !existingKeys.has(`${e.player_id}|${e.achievement_key}|${e.session_id}`)
+  )
 
-  const toUpsert = []
-  const newlyEarned = []
-  for (const c of computed) {
-    const ex = existingMap.get(`${c.player_id}|${c.achievement_key}`)
-    if (!ex || c.count > (ex.count ?? 1)) {
-      toUpsert.push({
-        player_id: c.player_id,
-        achievement_key: c.achievement_key,
-        achieved_at: c.lastAchievedAt,
-        count: c.count,
-      })
-      newlyEarned.push(c)
-    }
-  }
+  if (newEvents.length === 0) return []
 
-  if (toUpsert.length === 0) return []
-
-  const { error } = await supabase
-    .from('achievements')
-    .upsert(toUpsert, { onConflict: 'player_id,achievement_key' })
+  const { error } = await supabase.from('achievements').insert(
+    newEvents.map((e) => ({
+      player_id: e.player_id,
+      achievement_key: e.achievement_key,
+      session_id: e.session_id,
+      achieved_at: e.achieved_at,
+    }))
+  )
 
   if (error) {
-    console.error('[achievements] upsert error:', error)
+    console.error('[achievements] insert error:', error)
     return []
   }
 
-  return newlyEarned.map((c) => {
-    const player = players.find((p) => p.id === c.player_id)
-    const meta = ACHIEVEMENTS[c.achievement_key]
+  return newEvents.map((e) => {
+    const player = players.find((p) => p.id === e.player_id)
+    const meta = ACHIEVEMENTS[e.achievement_key]
     return {
-      ...c,
+      ...e,
       playerName: player?.name ?? '?',
       icon: meta?.icon ?? '🏅',
-      label: meta?.label ?? c.achievement_key,
+      label: meta?.label ?? e.achievement_key,
       description: meta?.description ?? '',
     }
   })
@@ -137,10 +132,12 @@ export async function syncAchievements(players) {
 
 // Herberekent alle achievements met terugwerkende kracht: wist de volledige
 // achievements-tabel en bouwt 'm opnieuw op door de complete sessiegeschiedenis
-// (oudste eerst) chronologisch af te spelen. Nuttig na wijzigingen aan de
-// achievement-regels, om te garanderen dat opgeslagen counts/datums exact
-// overeenkomen met wat de huidige logica zou berekenen — in tegenstelling tot
-// syncAchievements(), dat alleen incrementeel bijwerkt.
+// (oudste eerst) chronologisch af te spelen. Elk event (ook herhaalde
+// stapelbare badges) wordt als aparte rij met session_id opgeslagen. Nuttig na
+// wijzigingen aan de achievement-regels of na het verwijderen van een sessie,
+// om te garanderen dat de opgeslagen rijen exact overeenkomen met wat de
+// huidige logica zou berekenen — in tegenstelling tot syncAchievements(), dat
+// alleen incrementeel bijwerkt.
 export async function runHistoricalAchievements() {
   const [{ data: players }, { data: sessions }, { data: matches }, { data: poppers }] = await Promise.all([
     supabase.from('players').select('*'),
@@ -156,13 +153,12 @@ export async function runHistoricalAchievements() {
   }
 
   const events = computeAchievementEvents(players ?? [], sessions ?? [], matches ?? [], poppers ?? [])
-  const summary = summarizeAchievements(events)
 
-  const rows = summary.map((s) => ({
-    player_id: s.player_id,
-    achievement_key: s.achievement_key,
-    achieved_at: s.lastAchievedAt,
-    count: s.count,
+  const rows = events.map((e) => ({
+    player_id: e.player_id,
+    achievement_key: e.achievement_key,
+    session_id: e.session_id,
+    achieved_at: e.achieved_at,
   }))
 
   if (rows.length > 0) {
@@ -173,6 +169,7 @@ export async function runHistoricalAchievements() {
     }
   }
 
+  const summary = summarizeAchievements(events)
   const perPlayer = new Map()
   summary.forEach((s) => {
     perPlayer.set(s.player_id, (perPlayer.get(s.player_id) ?? 0) + 1)
