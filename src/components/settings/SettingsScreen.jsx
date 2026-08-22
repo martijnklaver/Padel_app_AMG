@@ -209,16 +209,8 @@ export default function SettingsScreen({ players, onPlayersUpdated }) {
         })}
       </div>
 
-      {/* Titel + link naar achievements-overzicht */}
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-xl font-bold text-gray-900">Spelersprofiel</h2>
-        <button
-          onClick={() => setView('achievements')}
-          className="shrink-0 text-xs font-medium text-primary bg-primary/10 px-3 py-1.5 rounded-full hover:bg-primary/20 transition-colors whitespace-nowrap"
-        >
-          🏅 Alle achievements
-        </button>
-      </div>
+      {/* Titel */}
+      <h2 className="text-xl font-bold text-gray-900 mb-3">Spelersprofiel</h2>
 
       {/* Profielkaart van de actieve speler */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
@@ -337,6 +329,16 @@ export default function SettingsScreen({ players, onPlayersUpdated }) {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Link naar achievements-overzicht */}
+      <div className="flex justify-center mt-4">
+        <button
+          onClick={() => setView('achievements')}
+          className="text-[11px] font-medium text-primary bg-primary/10 px-2.5 py-1 rounded-full hover:bg-primary/20 transition-colors whitespace-nowrap"
+        >
+          🏅 Achievements overzicht
+        </button>
       </div>
     </div>
   )
