@@ -10,7 +10,10 @@ export default function PopperSection({ playerIds, players, nicknames, counts, o
   return (
     <div className="mt-2 pt-2 border-t border-gray-100">
       <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Poppers 🎾</p>
-      <div className="grid grid-cols-2 gap-x-2 gap-y-1.5">
+      {/* grid-flow-col vult eerst kolom 1 (team1_p1, team1_p2), dan kolom 2
+          (team2_p1, team2_p2) — zo blijft de linker/rechter kolom in lijn met
+          de team1/team2 volgorde uit de scoreinvoer erboven. */}
+      <div className="grid grid-cols-2 grid-rows-2 grid-flow-col gap-x-2 gap-y-1.5">
         {playerIds.map(id => (
           <div key={id} className="flex items-center gap-1.5 min-w-0">
             <PlayerAvatar player={playerObj(id)} size={24} />
